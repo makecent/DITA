@@ -11,7 +11,7 @@ from mmdet.registry import DATASETS
 class Thumos14FeatDataset(BaseDetDataset):
     """Thumos14 dataset for temporal action detection."""
 
-    metainfo = dict(classes=('Ambiguous', 'BaseballPitch', 'BasketballDunk', 'Billiards', 'CleanAndJerk',
+    metainfo = dict(classes=('BaseballPitch', 'BasketballDunk', 'Billiards', 'CleanAndJerk',
                              'CliffDiving', 'CricketBowling', 'CricketShot', 'Diving', 'FrisbeeCatch', 'GolfSwing',
                              'HammerThrow', 'HighJump', 'JavelinThrow', 'LongJump', 'PoleVault', 'Shotput',
                              'SoccerPenalty', 'TennisSwing', 'ThrowDiscus', 'VolleyballSpiking'))
@@ -65,16 +65,14 @@ class Thumos14FeatDataset(BaseDetDataset):
                     print(f"too short segment annotation in {video_name}: {segment}, skipped")
 
                 # Skip ambiguous annotations or label them as ignored ground truth
-                label = self.metainfo['classes'].index(label) - 1  # minus 1 so that Ambiguous is labeled as -1.
-                if self.ambiguous:
-                    segments.append(segment)
-                    labels.append(label)
-                    ignore_flags.append(1 if label == -1 else 0)
-                elif label != -1:
-                    segments.append(segment)
-                    labels.append(label)
+                if label == 'Ambiguous':
+                    if self.ambiguous:
+                        segments.append(segment)
+                        labels.append(-1)
+                        ignore_flags.append(1)
                 else:
-                    continue
+                    segments.append(segment)
+                    labels.append(self.metainfo['classes'].index(label))
 
             data_info.update(dict(segments=np.array(segments, dtype=np.float32),
                                   labels=np.array(labels, dtype=np.int64)))

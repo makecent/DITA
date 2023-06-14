@@ -4,9 +4,10 @@ _base_ = [
 custom_imports = dict(imports=['my_modules'], allow_failed_imports=False)
 model = dict(
     type='DINO',
-    num_queries=900,  # num_matching_queries
+    num_queries=100,  # num_matching_queries, should be smaller than the window size
     with_box_refine=True,
     as_two_stage=True,
+    data_preprocessor=dict(type='DetDataPreprocessor'),
     backbone=dict(type='PseudoBackbone'),   # No backbone since we use pre-extracted features.
     neck=dict(
         type='ChannelMapper',
@@ -19,7 +20,7 @@ model = dict(
     encoder=dict(
         num_layers=6,
         layer_cfg=dict(
-            self_attn_cfg=dict(embed_dims=256, num_levels=4,
+            self_attn_cfg=dict(embed_dims=256, num_levels=1,
                                dropout=0.0),  # 0.1 for DeformDETR
             ffn_cfg=dict(
                 embed_dims=256,
@@ -31,7 +32,7 @@ model = dict(
         layer_cfg=dict(
             self_attn_cfg=dict(embed_dims=256, num_heads=8,
                                dropout=0.0),  # 0.1 for DeformDETR
-            cross_attn_cfg=dict(embed_dims=256, num_levels=4,
+            cross_attn_cfg=dict(embed_dims=256, num_levels=1,
                                 dropout=0.0),  # 0.1 for DeformDETR
             ffn_cfg=dict(
                 embed_dims=256,

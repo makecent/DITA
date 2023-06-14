@@ -122,10 +122,12 @@ class SlidingWindow(BaseTransform):
 
     def __init__(self,
                  window_size: int,  # the feature length input to the model
-                 iof_thr=0.75):
+                 iof_thr=0.75,
+                 attempts=100):
         self.window_size = window_size
         # Only windows with IoF (Intersection over Foreground) > iof_thr for at least one action are valid.
         self.iof_thr = iof_thr
+        self.attempts = attempts
 
     def get_valid_mask(self, segments, patch, iof_thr):
         gt_iofs = segment_overlaps(segments, patch, mode='iof')[:, 0]
@@ -146,25 +148,34 @@ class SlidingWindow(BaseTransform):
         # Conduct sliding window
         if feat_len > self.window_size:
             # If feat_len greater than the window_size, we randomly crop a window_size of feature.
-            while True:
+            for i in range(self.attempts):
                 start_idx = random.randint(0, feat_len - self.window_size)
                 end_idx = start_idx + self.window_size - 1
 
                 # If no segments in the cropped window, then re-crop. Ignored segments (Ambiguous) do not count.
-                valid_mask = self.get_valid_mask(segments, np.array([[start_idx, end_idx]], dtype=np.float32), iof_thr=self.iof_thr)
-                valid_mask = valid_mask & ~results.get('gt_ignore_flags', np.full(valid_mask.shape, True))
+                valid_mask = self.get_valid_mask(segments, np.array([[start_idx, end_idx]], dtype=np.float32),
+                                                 iof_thr=self.iof_thr)
+                valid_mask = valid_mask & ~results.get('gt_ignore_flags', np.full(valid_mask.shape, False))
                 if not valid_mask.any():
                     continue
 
                 # Convert the segment annotations to be relative to the cropped window.
                 segments = segments[valid_mask].clip(min=start_idx, max=end_idx) - start_idx
                 results['segments'] = segments
+                results['labels'] = results['labels'][valid_mask]
+                if 'gt_ignore_flags' in results:
+                    results['gt_ignore_flags'] = results['gt_ignore_flags'][valid_mask]
                 results['feat'] = feat[start_idx: end_idx + 1]
                 results['feat_len'] = self.window_size
+                break
+            else:
+                raise RuntimeError(
+                    f"Could not found a valid crop after {self.attempts} attempts, "
+                    f"you may need modify the window size or number of attempts")
         else:
             # Padding the feature to window size if the feat is too short
             results['segments'] = segments
-            results['feat'] = np.pad(feat, ((0, feat_len - self.window_size), (0, 0)), constant_values=0)
+            results['feat'] = np.pad(feat, ((0, self.window_size - feat_len), (0, 0)), constant_values=0)
 
         return results
 
@@ -174,10 +185,19 @@ class ReFormat(BaseTransform):
 
     def transform(self,
                   results: Dict) -> Optional[Union[Dict, Tuple[List, List]]]:
-        results['img_shape'] = (1, results['feat_len'])
-        results['img'] = results['feat'][None]
         # [x1 x2] to [x1 y1 x2 y2]
         gt_bboxes = np.insert(results['segments'], 2, 0.9, axis=-1)
         gt_bboxes = np.insert(gt_bboxes, 1, 0.1, axis=-1)
         results['gt_bboxes'] = gt_bboxes
-        results['gt_bboxes_labels'] = results['labels']
+
+        results.update({'gt_bboxes_labels': results.pop('labels')})
+        results.update({"img_id": results.pop("video_name")})
+        results.update({'img': results.pop('feat')[None]})
+        results.update({'ori_shape': (1, results.pop('feat_len'))})
+        results.update({'img_shape': results['ori_shape']})
+
+        results['img_path'] = ''
+        results['scale_factor'] = [1.0, 1.0]
+        results['flip'] = False
+        results['flip_direction'] = None
+        return results

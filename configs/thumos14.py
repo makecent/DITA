@@ -8,7 +8,7 @@ train_pipeline = [
     dict(type='PackDetInputs')
 ]
 test_pipeline = [
-    dict(type='SlidingWindow', window_size=128, iof_thr=0.75),
+    dict(type='SlidingWindow', window_size=128, iof_thr=0.75, attempts=1000),
     dict(type='ReFormat'),
     dict(type='PackDetInputs')
 ]
@@ -44,7 +44,7 @@ val_dataloader = dict(
 test_dataloader = val_dataloader
 
 val_evaluator = dict(
-    type='VOCMetric',
+    type='TH14Metric',
     iou_thrs=[0.3, 0.4, 0.5, 0.6, 0.7],
     eval_mode='area',
     metric='mAP')
