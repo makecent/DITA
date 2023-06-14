@@ -87,9 +87,9 @@ optim_wrapper = dict(
 )  # custom_keys contains sampling_offsets and reference_points in DeformDETR  # noqa
 
 # learning policy
-max_epochs = 12
+max_epochs = 120
 train_cfg = dict(
-    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=20)
 
 val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
@@ -100,10 +100,13 @@ param_scheduler = [
         begin=0,
         end=max_epochs,
         by_epoch=True,
-        milestones=[11],
+        milestones=[110],
         gamma=0.1)
 ]
 
+default_hooks = dict(
+    logger=dict(type='LoggerHook', interval=10),
+    checkpoint=dict(type='CheckpointHook', interval=50))
 # NOTE: `auto_scale_lr` is for automatically scaling LR,
 # USER SHOULD NOT CHANGE ITS VALUES.
 # base_batch_size = (8 GPUs) x (2 samples per GPU)
