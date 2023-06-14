@@ -87,7 +87,7 @@ optim_wrapper = dict(
 )  # custom_keys contains sampling_offsets and reference_points in DeformDETR  # noqa
 
 # learning policy
-max_epochs = 120
+max_epochs = 60
 train_cfg = dict(
     type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=20)
 
@@ -100,13 +100,13 @@ param_scheduler = [
         begin=0,
         end=max_epochs,
         by_epoch=True,
-        milestones=[110],
+        milestones=[50],
         gamma=0.1)
 ]
 
 default_hooks = dict(
     logger=dict(type='LoggerHook', interval=10),
-    checkpoint=dict(type='CheckpointHook', interval=50))
+    checkpoint=dict(type='CheckpointHook', interval=20))
 vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
 # NOTE: `auto_scale_lr` is for automatically scaling LR,
 # USER SHOULD NOT CHANGE ITS VALUES.
