@@ -8,7 +8,7 @@ model = dict(
     with_box_refine=True,
     as_two_stage=True,
     data_preprocessor=dict(type='DetDataPreprocessor'),
-    backbone=dict(type='PseudoBackbone'),   # No backbone since we use pre-extracted features.
+    backbone=dict(type='PseudoBackbone'),  # No backbone since we use pre-extracted features.
     neck=dict(
         type='ChannelMapper',
         in_channels=[2048],
@@ -107,6 +107,7 @@ param_scheduler = [
 default_hooks = dict(
     logger=dict(type='LoggerHook', interval=10),
     checkpoint=dict(type='CheckpointHook', interval=50))
+vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
 # NOTE: `auto_scale_lr` is for automatically scaling LR,
 # USER SHOULD NOT CHANGE ITS VALUES.
 # base_batch_size = (8 GPUs) x (2 samples per GPU)
