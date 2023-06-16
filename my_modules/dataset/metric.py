@@ -1,15 +1,29 @@
-# Copyright (c) OpenMMLab. All rights reserved.
 import copy
+from collections import OrderedDict
 from typing import Sequence
 
 import numpy as np
 import torch
+from mmcv.ops import batched_nms
+from mmdet.evaluation.functional import eval_map, eval_recalls
 from mmdet.evaluation.metrics import VOCMetric
 from mmdet.registry import METRICS
+from mmengine.logging import MMLogger
+from mmengine.structures import InstanceData
 
 
 @METRICS.register_module()
 class TH14Metric(VOCMetric):
+
+    def __init__(self,
+                 nms_cfg=dict(type='nms', iou_thr=0.5),
+                 max_per_video: int = 100,
+                 eval_mode: str = 'area',
+                 **kwargs):
+        super().__init__(eval_mode=eval_mode, **kwargs)
+        self.nms_cfg = nms_cfg
+        self.max_per_video = max_per_video
+
     def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
         """Process one batch of data samples and predictions. The processed
         results should be stored in ``self.results``, which will be used to
@@ -26,21 +40,127 @@ class TH14Metric(VOCMetric):
             gt_instances = gt['gt_instances']
             gt_ignore_instances = gt['ignored_instances']
             ann = dict(
+                video_name=gt['img_id'],    # for the purpose of future grouping detections of same video.
                 labels=gt_instances['labels'].cpu().numpy(),
                 bboxes=gt_instances['bboxes'].cpu().numpy(),
                 bboxes_ignore=gt_ignore_instances.get('bboxes', torch.empty((0, 4))).cpu().numpy(),
                 labels_ignore=gt_ignore_instances.get('labels', torch.empty(0, )).cpu().numpy())
 
-            pred = data_sample['pred_instances']
-            pred_bboxes = pred['bboxes'].cpu().numpy()
-            pred_scores = pred['scores'].cpu().numpy()
-            pred_labels = pred['labels'].cpu().numpy()
+            # Format predictions to InstanceData
+            dets = InstanceData(**data_sample['pred_instances'])
 
-            dets = []
-            for label in range(len(self.dataset_meta['classes'])):
-                index = np.where(pred_labels == label)[0]
-                pred_bbox_scores = np.hstack(
-                    [pred_bboxes[index], pred_scores[index].reshape((-1, 1))])
-                dets.append(pred_bbox_scores)
+            dets['bboxes'] = dets['bboxes'].cpu()
+            # Convert the format of segment predictions from feature-unit to second-unit (add window-offset back first).
+            dets['bboxes'] = (dets['bboxes'] + gt['offset']) * gt['feat_stride'] / gt['fps']
+            # Set y1, y2 of predictions the fixed value.
+            dets['bboxes'][:, 1] = 0.1
+            dets['bboxes'][:, 3] = 0.9
+
+            dets['scores'] = dets['scores'].cpu()
+            dets['labels'] = dets['labels'].cpu()
 
             self.results.append((ann, dets))
+
+    def compute_metrics(self, results: list) -> dict:
+        """Compute the metrics from processed results.
+
+        Args:
+            results (list): The processed results of each batch.
+
+        Returns:
+            dict: The computed metrics. The keys are the names of the metrics,
+            and the values are corresponding results.
+        """
+        logger: MMLogger = MMLogger.get_current_instance()
+        gts, preds = zip(*results)
+
+        # Following the TadTR, we cropped temporally OVERLAPPED sub-videos from the test video
+        # to handle test video of long duration while keep a fine temporal granularity.
+        # In this case, we need perform non-maximum suppression (NMS) to remove redundant detections.
+        # This NMS, however, is NOT necessary when window stride >= window size, i.e., non-overlapped sliding window.
+        gts, preds = self.merge_results_of_same_video(gts, preds)
+        logger.info(f'\n Concatenating the testing results ...')
+        preds = self.non_maximum_suppression(preds)
+        eval_results = OrderedDict()
+        if self.metric == 'mAP':
+            assert isinstance(self.iou_thrs, list)
+            dataset_name = self.dataset_meta['classes']
+
+            mean_aps = []
+            for iou_thr in self.iou_thrs:
+                logger.info(f'\n{"-" * 15}iou_thr: {iou_thr}{"-" * 15}')
+                mean_ap, _ = eval_map(
+                    preds,
+                    gts,
+                    scale_ranges=self.scale_ranges,
+                    iou_thr=iou_thr,
+                    dataset=dataset_name,
+                    logger=logger,
+                    eval_mode=self.eval_mode,
+                    use_legacy_coordinate=False)
+                mean_aps.append(mean_ap)
+                eval_results[f'AP{int(iou_thr * 100):02d}'] = round(mean_ap, 3)
+            eval_results['mAP'] = sum(mean_aps) / len(mean_aps)
+            eval_results.move_to_end('mAP', last=False)
+        elif self.metric == 'recall':
+            # TODO: Currently not checked.
+            gt_bboxes = [ann['bboxes'] for ann in self.annotations]
+            recalls = eval_recalls(
+                gt_bboxes,
+                results,
+                self.proposal_nums,
+                self.iou_thrs,
+                logger=logger,
+                use_legacy_coordinate=False)
+            for i, num in enumerate(self.proposal_nums):
+                for j, iou_thr in enumerate(self.iou_thrs):
+                    eval_results[f'recall@{num}@{iou_thr}'] = recalls[i, j]
+            if recalls.shape[1] > 1:
+                ar = recalls.mean(axis=1)
+                for i, num in enumerate(self.proposal_nums):
+                    eval_results[f'AR@{num}'] = ar[i]
+        return eval_results
+
+    @staticmethod
+    def merge_results_of_same_video(gts, preds):
+        video_names = list(dict.fromkeys([gt['video_name'] for gt in gts]))
+
+        merged_gts_dict = dict()
+        merged_preds_dict = dict()
+        for this_gt, this_pred in zip(gts, preds):
+            video_name = this_gt.pop('video_name')
+            merged_preds_dict.setdefault(video_name, []).append(this_pred)
+            merged_gts_dict.setdefault(video_name, this_gt)  # the gt is video-wise thus no need concatenation
+
+        # dict of list to list of dict
+        merged_gts = []
+        merged_preds = []
+        for video_name in video_names:
+            merged_gts.append(merged_gts_dict[video_name])
+            # Concatenate detection in windows of the same video
+            merged_preds.append(InstanceData.cat(merged_preds_dict[video_name]))
+        return merged_gts, merged_preds
+
+    def non_maximum_suppression(self, preds):
+        preds_nms = []
+        for pred_v in preds:
+            bboxes, keep_idxs = batched_nms(pred_v.bboxes,
+                                            pred_v.scores,
+                                            pred_v.labels,
+                                            nms_cfg=self.nms_cfg)
+            pred_v = pred_v[keep_idxs]
+            # some nms operation may reweight the score such as softnms
+            pred_v.scores = bboxes[:, -1]
+            # keep top-k predictions
+            pred_v = pred_v[:self.max_per_video]
+
+            # Reformat predictions to meet the requirement of eval_map function: VideoList[ClassList[PredictionArray]]
+            dets = []
+            for label in range(len(self.dataset_meta['classes'])):
+                index = np.where(pred_v.labels == label)[0]
+                pred_bbox_with_scores = np.hstack(
+                    [pred_v[index].bboxes, pred_v[index].scores.reshape((-1, 1))])
+                dets.append(pred_bbox_with_scores)
+
+            preds_nms.append(dets)
+        return preds_nms

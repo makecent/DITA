@@ -5,7 +5,7 @@ import mmengine
 import numpy as np
 from mmdet.datasets import BaseDetDataset
 from mmdet.registry import DATASETS
-
+from copy import deepcopy
 
 @DATASETS.register_module()
 class Thumos14FeatDataset(BaseDetDataset):
@@ -17,19 +17,26 @@ class Thumos14FeatDataset(BaseDetDataset):
                              'SoccerPenalty', 'TennisSwing', 'ThrowDiscus', 'VolleyballSpiking'))
 
     def __init__(self,
-                 feat_stride,  # feature are extracted every n frames
+                 feat_stride,       # feature are extracted every n frames
                  skip_short=False,  # skip too short annotations
-                 ambiguous=False,  # whether track ambiguous annotations. Set False if you are not going to use them.
+                 ambiguous=False,   # whether track ambiguous annotations. Set False if you are not going to use them.
+                 window_size=None,   # only applicable to testing phase, should be equal to the training window size.
+                 window_stride=None,  # only applicable to testing phase, the fixed window stride in testing.
                  **kwargs):
         self.feat_stride = feat_stride
         self.skip_short = skip_short
         self.ambiguous = ambiguous
+        self.window_size = window_size
+        self.window_stride = window_stride
         super(Thumos14FeatDataset, self).__init__(**kwargs)
 
     def load_data_list(self):
         data_list = []
         ann_file = mmengine.load(self.ann_file)
         for video_name, video_info in ann_file.items():
+            # Parsing ground truth
+            segments, labels, ignore_flags = self.parse_labels(video_name, video_info)
+
             # Loading features
             feat_path = Path(self.data_prefix['feat']).joinpath(video_name)
             if mmengine.exists(str(feat_path) + '.npy'):
@@ -37,47 +44,62 @@ class Thumos14FeatDataset(BaseDetDataset):
             else:
                 warnings.warn(f"Cannot find feature file {str(feat_path)}, skipped")
                 continue
-            feat_len = len(feat)
 
             data_info = dict(video_name=video_name,
                              duration=float(video_info['duration']),
                              fps=float(video_info['FPS']),
                              feat_stride=self.feat_stride,
-                             feat_len=feat_len,
-                             feat=feat)
-
-            # Segments information
-            segments = []
-            labels = []
-            ignore_flags = []
-            video_duration = video_info['duration']
-            for segment, label in zip(video_info['segments'], video_info['labels']):
-
-                # Skip annotations that are out of range.
-                if not (0 <= segment[0] < segment[1] <= video_duration):
-                    print(f"invalid segment annotation in {video_name}: {segment}, duration={video_duration}, skipped")
-                    continue
-
-                # Skip annotations that are too short. The threshold could be the stride of feature extraction.
-                # For example, if the features were extracted every 8 frames,
-                # then the threshold should be greater than 8/30 = 0.27s
-                if segment[1] - segment[0] < 0.3 and self.skip_short:
-                    print(f"too short segment annotation in {video_name}: {segment}, skipped")
-
-                # Skip ambiguous annotations or label them as ignored ground truth
-                if label == 'Ambiguous':
-                    if self.ambiguous:
-                        segments.append(segment)
-                        labels.append(-1)
-                        ignore_flags.append(1)
-                else:
-                    segments.append(segment)
-                    labels.append(self.metainfo['classes'].index(label))
-
-            data_info.update(dict(segments=np.array(segments, dtype=np.float32),
-                                  labels=np.array(labels, dtype=np.int64)))
+                             segments=np.array(segments, dtype=np.float32),
+                             labels=np.array(labels, dtype=np.int64))
             if self.ambiguous:
                 data_info.update(dict(gt_ignore_flags=np.array(ignore_flags, dtype=np.float32)))
-            data_list.append(data_info)
 
+            if not self.test_mode:
+                data_info.update(dict(feat=feat,
+                                      feat_len=len(feat)))
+                data_list.append(data_info)
+            else:
+                # Perform fixed-stride sliding window
+                feat_windows = [feat[i: i + self.window_size] for i in range(0, len(feat), self.window_stride)]
+                for i, feat_window in enumerate(feat_windows):
+                    feat_win_len = len(feat_window)
+                    if feat_win_len < self.window_size:
+                        feat_window = np.pad(feat_window,
+                                             ((0, self.window_size - feat_win_len), (0, 0)),
+                                             constant_values=0)
+                    data_info.update(dict(offset=float(i * self.window_stride),
+                                          feat_len=feat_win_len,  # length before padding for computing the mask
+                                          feat=feat_window))
+                    data_list.append(deepcopy(data_info))
         return data_list
+
+    def parse_labels(self, video_name, video_info):
+        # Segments information
+        segments = []
+        labels = []
+        ignore_flags = []
+        video_duration = video_info['duration']
+        for segment, label in zip(video_info['segments'], video_info['labels']):
+
+            # Skip annotations that are out of range.
+            if not (0 <= segment[0] < segment[1] <= video_duration):
+                print(f"invalid segment annotation in {video_name}: {segment}, duration={video_duration}, skipped")
+                continue
+
+            # Skip annotations that are too short. The threshold could be the stride of feature extraction.
+            # For example, if the features were extracted every 8 frames,
+            # then the threshold should be greater than 8/30 = 0.27s
+            if segment[1] - segment[0] < 0.3 and self.skip_short:
+                print(f"too short segment annotation in {video_name}: {segment}, skipped")
+
+            # Skip ambiguous annotations or label them as ignored ground truth
+            if label == 'Ambiguous':
+                if self.ambiguous:
+                    segments.append(segment)
+                    labels.append(-1)
+                    ignore_flags.append(1)
+            else:
+                segments.append(segment)
+                labels.append(self.metainfo['classes'].index(label))
+
+        return segments, labels, ignore_flags

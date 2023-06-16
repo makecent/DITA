@@ -8,9 +8,11 @@ train_pipeline = [
     dict(type='PackDetInputs')
 ]
 test_pipeline = [
-    dict(type='SlidingWindow', window_size=128, iof_thr=0.75, attempts=1000),
     dict(type='ReFormat'),
-    dict(type='PackDetInputs')
+    dict(type='PackDetInputs',
+         meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
+                    'scale_factor', 'flip', 'flip_direction',
+                    'fps', 'feat_stride', 'offset'))
 ]
 train_dataloader = dict(
     batch_size=2,
@@ -38,6 +40,8 @@ val_dataloader = dict(
         data_root=data_root,
         ann_file='annotations/louis/thumos14_test.json',
         feat_stride=8,
+        window_size=128,
+        window_stride=96,
         data_prefix=dict(feat='features/thumos_feat_TadTR_64input_8stride_2048'),
         test_mode=True,
         pipeline=test_pipeline))
@@ -45,7 +49,8 @@ test_dataloader = val_dataloader
 
 val_evaluator = dict(
     type='TH14Metric',
+    metric='mAP',
     iou_thrs=[0.3, 0.4, 0.5, 0.6, 0.7],
-    eval_mode='area',
-    metric='mAP')
+    nms_cfg=dict(type='nms', iou_thr=0.5),
+    max_per_video=100)
 test_evaluator = val_evaluator
