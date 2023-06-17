@@ -124,5 +124,5 @@ class MyRoIHead(BaseModule):
                 pred.bboxes /= pred.bboxes.new_tensor(
                     img_meta['scale_factor']).repeat((1, 2))
                 # using actionness regression results as confidence scores of bboxes instead of classification score
-                pred.scores = actionness
+                # pred.scores = actionness
         return bbox_pred
