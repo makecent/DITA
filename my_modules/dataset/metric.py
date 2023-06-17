@@ -16,7 +16,7 @@ from mmengine.structures import InstanceData
 class TH14Metric(VOCMetric):
 
     def __init__(self,
-                 nms_cfg=dict(type='nms', iou_thr=0.5),
+                 nms_cfg=dict(type='nms', iou_thr=0.4),
                  max_per_video: int = 100,
                  eval_mode: str = 'area',
                  **kwargs):

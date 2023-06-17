@@ -10,10 +10,10 @@ from mmdet.structures import SampleList
 from mmdet.structures.bbox import bbox_cxcywh_to_xyxy, bbox_xyxy_to_cxcywh
 from mmdet.utils import InstanceList, OptInstanceList, reduce_mean
 from mmdet.models.utils import multi_apply
-from .deformable_detr_head import DeformableDETRHead
+from mmdet.models.dense_heads.deformable_detr_head import DeformableDETRHead
 
 
-@MODELS.register_module()
+@MODELS.register_module(force=True)
 class DINOHead(DeformableDETRHead):
     r"""Head of the DINO: DETR with Improved DeNoising Anchor Boxes
     for End-to-End Object Detection
@@ -454,3 +454,24 @@ class DINOHead(DeformableDETRHead):
         return (all_layers_matching_cls_scores, all_layers_matching_bbox_preds,
                 all_layers_denoising_cls_scores,
                 all_layers_denoising_bbox_preds)
+
+    def loss_and_predict(
+            self,
+            hidden_states: Tensor, references: List[Tensor],
+            enc_outputs_class: Tensor, enc_outputs_coord: Tensor,
+            batch_data_samples: SampleList, dn_meta: Dict[str, int],
+            rescale: bool = False) -> Tuple[dict, InstanceList]:
+        batch_gt_instances = []
+        batch_img_metas = []
+        for data_sample in batch_data_samples:
+            batch_img_metas.append(data_sample.metainfo)
+            batch_gt_instances.append(data_sample.gt_instances)
+
+        outs = self(hidden_states, references)
+        loss_inputs = outs + (enc_outputs_class, enc_outputs_coord,
+                              batch_gt_instances, batch_img_metas, dn_meta)
+        losses = self.loss_by_feat(*loss_inputs)
+
+        predictions = self.predict_by_feat(
+            *outs, batch_img_metas=batch_img_metas, rescale=rescale)
+        return losses, predictions

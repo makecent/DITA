@@ -8,12 +8,12 @@ from torch.nn.init import normal_
 from mmdet.registry import MODELS
 from mmdet.structures import OptSampleList
 from mmdet.utils import OptConfigType
-from ..layers import (CdnQueryGenerator, DeformableDetrTransformerEncoder,
+from mmdet.models.layers import (CdnQueryGenerator, DeformableDetrTransformerEncoder,
                       DinoTransformerDecoder, SinePositionalEncoding)
-from .deformable_detr import DeformableDETR, MultiScaleDeformableAttention
+from mmdet.models.detectors.deformable_detr import DeformableDETR, MultiScaleDeformableAttention
 
 
-@MODELS.register_module()
+@MODELS.register_module(force=True)
 class DINO(DeformableDETR):
     r"""Implementation of `DINO: DETR with Improved DeNoising Anchor Boxes
     for End-to-End Object Detection <https://arxiv.org/abs/2203.03605>`_
@@ -121,6 +121,13 @@ class DINO(DeformableDETR):
 
         decoder_outputs_dict = self.forward_decoder(**decoder_inputs_dict)
         head_inputs_dict.update(decoder_outputs_dict)
+
+        # louis: input encoder memory into2 the head for RoIAlign and actionness regression.
+        memory = encoder_outputs_dict['memory']
+        level_start_index = decoder_inputs_dict['level_start_index']
+        # memory [N, W, C] -> [N, C, W] -> [N, C, 1, W] -> split on last dimension (W)
+        mlvl_memory = torch.tensor_split(memory.transpose(1, 2).unsqueeze(2), level_start_index[1:], dim=-1)
+        head_inputs_dict['memory'] = mlvl_memory
         return head_inputs_dict
 
     def pre_decoder(
