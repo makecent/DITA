@@ -124,8 +124,7 @@ class DINO(DeformableDETR):
 
         # louis: input encoder memory into2 the head for RoIAlign and actionness regression.
         memory = encoder_outputs_dict['memory']
-        print("Here!!!!!!!!!!!!!!!!!", memory.device)
-        level_start_index = decoder_inputs_dict['level_start_index']
+        level_start_index = decoder_inputs_dict['level_start_index'].cpu()
         # memory [N, W, C] -> [N, C, W] -> [N, C, 1, W] -> split on last dimension (W)
         mlvl_memory = torch.tensor_split(memory.transpose(1, 2).unsqueeze(2), level_start_index[1:], dim=-1)
         head_inputs_dict['memory'] = mlvl_memory
