@@ -11,11 +11,11 @@ from torch import Tensor
 from mmdet.registry import MODELS
 from mmdet.structures import SampleList
 from mmdet.utils import InstanceList, OptInstanceList
-from ..layers import inverse_sigmoid
-from .detr_head import DETRHead
+from mmdet.models.layers import inverse_sigmoid
+from mmdet.models.dense_heads.detr_head import DETRHead
 
 
-@MODELS.register_module()
+@MODELS.register_module(force=True)
 class DeformableDETRHead(DETRHead):
     r"""Head of DeformDETR: Deformable DETR: Deformable Transformers for
     End-to-End Object Detection.
@@ -326,3 +326,25 @@ class DeformableDETRHead(DETRHead):
                                                    img_meta, rescale)
             result_list.append(results)
         return result_list
+
+    # louis: add loss_and_predict
+    def loss_and_predict(
+            self,
+            hidden_states: Tensor, references: List[Tensor],
+            enc_outputs_class: Tensor, enc_outputs_coord: Tensor,
+            batch_data_samples: SampleList,
+            rescale: bool = False) -> Tuple[dict, InstanceList]:
+        batch_gt_instances = []
+        batch_img_metas = []
+        for data_sample in batch_data_samples:
+            batch_img_metas.append(data_sample.metainfo)
+            batch_gt_instances.append(data_sample.gt_instances)
+
+        outs = self(hidden_states, references)
+        loss_inputs = outs + (enc_outputs_class, enc_outputs_coord,
+                              batch_gt_instances, batch_img_metas)
+        losses = self.loss_by_feat(*loss_inputs)
+
+        predictions = self.predict_by_feat(
+            *outs, batch_img_metas=batch_img_metas, rescale=rescale)
+        return losses, predictions

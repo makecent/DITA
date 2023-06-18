@@ -39,8 +39,9 @@ model = dict(
         num_layers=enc_layers,  # 6 for DeformableDETR
         layer_cfg=dict(
             self_attn_cfg=dict(
+                num_levels=1,
                 embed_dims=256,
-                batch_firt=True),
+                batch_first=True),
             ffn_cfg=dict(
                 embed_dims=256,
                 feedforward_channels=dim_feedforward,
@@ -56,6 +57,7 @@ model = dict(
                 batch_first=True),
             cross_attn_cfg=dict(
                 embed_dims=256,
+                num_levels=1,
                 batch_first=True),
             ffn_cfg=dict(
                 embed_dims=256,
@@ -121,9 +123,9 @@ optim_wrapper = dict(
 # learning policy
 # TadTR uses 30 epochs, but since we use random sliding windows rather than fixed overlapping windows,
 # we should increase the number of epochs to maximize utilization of the video content.
-max_epochs = 256
+max_epochs = 80
 train_cfg = dict(
-    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=12)
+    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=5)
 
 val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
@@ -134,7 +136,7 @@ param_scheduler = [
         begin=0,
         end=max_epochs,
         by_epoch=True,
-        milestones=[224],
+        milestones=[70],
         gamma=0.1)
 ]
 
@@ -146,7 +148,7 @@ auto_scale_lr = dict(base_batch_size=16)
 default_scope = 'mmdet'
 default_hooks = dict(
     timer=dict(type='IterTimerHook'),
-    logger=dict(type='LoggerHook', interval=1),
+    logger=dict(type='LoggerHook', interval=10),
     param_scheduler=dict(type='ParamSchedulerHook'),
     checkpoint=dict(type='CheckpointHook', interval=10),
     sampler_seed=dict(type='DistSamplerSeedHook'),

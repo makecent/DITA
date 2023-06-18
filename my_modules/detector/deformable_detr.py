@@ -12,12 +12,12 @@ from torch.nn.init import normal_
 from mmdet.registry import MODELS
 from mmdet.structures import OptSampleList
 from mmdet.utils import OptConfigType
-from ..layers import (DeformableDetrTransformerDecoder,
-                      DeformableDetrTransformerEncoder, SinePositionalEncoding)
-from .base_detr import DetectionTransformer
+from mmdet.models.layers import (DeformableDetrTransformerDecoder,
+                                 DeformableDetrTransformerEncoder, SinePositionalEncoding)
+from mmdet.models.detectors.base_detr import DetectionTransformer
 
 
-@MODELS.register_module()
+@MODELS.register_module(force=True)
 class DeformableDETR(DetectionTransformer):
     r"""Implementation of `Deformable DETR: Deformable Transformers for
     End-to-End Object Detection <https://arxiv.org/abs/2010.04159>`_
@@ -539,3 +539,25 @@ class DeformableDETR(DetectionTransformer):
         pos = torch.stack((pos[:, :, :, 0::2].sin(), pos[:, :, :, 1::2].cos()),
                           dim=4).flatten(2)
         return pos
+
+    def forward_transformer(self,
+                            img_feats: Tuple[Tensor],
+                            batch_data_samples: OptSampleList = None) -> Dict:
+        encoder_inputs_dict, decoder_inputs_dict = self.pre_transformer(
+            img_feats, batch_data_samples)
+
+        encoder_outputs_dict = self.forward_encoder(**encoder_inputs_dict)
+
+        tmp_dec_in, head_inputs_dict = self.pre_decoder(**encoder_outputs_dict)
+        decoder_inputs_dict.update(tmp_dec_in)
+
+        decoder_outputs_dict = self.forward_decoder(**decoder_inputs_dict)
+        head_inputs_dict.update(decoder_outputs_dict)
+
+        # louis: input encoder memory into2 the head for RoIAlign and actionness regression.
+        memory = encoder_outputs_dict['memory']
+        level_start_index = decoder_inputs_dict['level_start_index'].cpu()
+        # memory [N, W, C] -> [N, C, W] -> [N, C, 1, W] -> split on last dimension (W)
+        mlvl_memory = torch.tensor_split(memory.transpose(1, 2).unsqueeze(2), level_start_index[1:], dim=-1)
+        head_inputs_dict['memory'] = mlvl_memory
+        return head_inputs_dict
