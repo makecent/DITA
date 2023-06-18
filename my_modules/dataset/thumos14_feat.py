@@ -71,7 +71,7 @@ class Thumos14FeatDataset(BaseDetDataset):
                 for i, feat_window in enumerate(feat_windows):
                     start_idx = float(i * self.window_stride)
                     feat_win_len = len(feat_window)
-                    end_idx = start_idx + feat_win_len
+                    end_idx = start_idx + feat_win_len - 1
 
                     # Padding windows that are shorter than the target window size.
                     if feat_win_len < self.window_size:
@@ -82,20 +82,23 @@ class Thumos14FeatDataset(BaseDetDataset):
                                           feat_len=feat_win_len,  # before padding for computing the valid feature mask
                                           feat=feat_window))
 
-                    # During the training, windows has no segment annotated are skipped
                     if not self.test_mode:
-                        valid_mask = SlidingWindow.get_valid_mask(segments,
+                        # Convert the format of segment annotations from second-unit to feature-unit.
+                        segments_f = segments * data_info['fps'] / self.feat_stride
+                        # During the training, windows has no segment annotated are skipped
+                        valid_mask = SlidingWindow.get_valid_mask(segments_f,
                                                                   np.array([[start_idx, end_idx]], dtype=np.float32),
                                                                   iof_thr=self.iof_thr,
                                                                   ignore_flags=ignore_flags)
                         if not valid_mask.any():
                             continue
-                        _segments = segments[valid_mask].clip(min=start_idx, max=end_idx) - start_idx
-                        _labels = labels[valid_mask]
-                        _ignore_flags = ignore_flags[valid_mask]
-                        data_info.update(dict(segments=_segments,
-                                              labels=_labels,
-                                              gt_ignore_flags=_ignore_flags))
+                        # Convert the segment annotations to be relative to the feature window
+                        segments_f = segments_f[valid_mask].clip(min=start_idx, max=end_idx) - start_idx
+                        labels_f = labels[valid_mask]
+                        ignore_flags_f = ignore_flags[valid_mask]
+                        data_info.update(dict(segments=segments_f,
+                                              labels=labels_f,
+                                              gt_ignore_flags=ignore_flags_f))
                     data_list.append(deepcopy(data_info))
         return data_list
 
