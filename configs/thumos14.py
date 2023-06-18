@@ -3,7 +3,7 @@ dataset_type = 'Thumos14FeatDataset'
 data_root = 'my_data/thumos14/'
 
 train_pipeline = [
-    dict(type='SlidingWindow', window_size=128, iof_thr=0.75),
+    # dict(type='SlidingWindow', window_size=128, iof_thr=0.75),
     dict(type='ReFormat'),
     dict(type='PackDetInputs')
 ]
@@ -24,7 +24,11 @@ train_dataloader = dict(
         type=dataset_type,
         data_root=data_root,
         ann_file='annotations/louis/thumos14_val.json',
+        fix_slice=True,
         feat_stride=8,
+        window_size=128,
+        window_stride=64,
+        iof_thr=0.75,
         skip_short=True,
         data_prefix=dict(feat='features/thumos_feat_TadTR_64input_8stride_2048'),
         filter_cfg=dict(filter_empty_gt=False),
@@ -39,6 +43,7 @@ val_dataloader = dict(
         type=dataset_type,
         data_root=data_root,
         ann_file='annotations/louis/thumos14_test.json',
+        fix_slice=True,
         feat_stride=8,
         window_size=128,
         window_stride=96,

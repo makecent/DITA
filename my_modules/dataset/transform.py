@@ -129,12 +129,14 @@ class SlidingWindow(BaseTransform):
         self.iof_thr = iof_thr
         self.attempts = attempts
 
-    def get_valid_mask(self, segments, patch, iof_thr):
+    @staticmethod
+    def get_valid_mask(segments, patch, iof_thr, ignore_flags=None):
         gt_iofs = segment_overlaps(segments, patch, mode='iof')[:, 0]
         patch_iofs = segment_overlaps(patch, segments, mode='iof')[0, :]
         iofs = np.maximum(gt_iofs, patch_iofs)
         mask = iofs > iof_thr
-
+        if ignore_flags is not None:
+            mask = mask & ~ignore_flags
         return mask
 
     def transform(self,
@@ -153,9 +155,10 @@ class SlidingWindow(BaseTransform):
                 end_idx = start_idx + self.window_size - 1
 
                 # If no segments in the cropped window, then re-crop. Ignored segments (Ambiguous) do not count.
-                valid_mask = self.get_valid_mask(segments, np.array([[start_idx, end_idx]], dtype=np.float32),
-                                                 iof_thr=self.iof_thr)
-                valid_mask = valid_mask & ~results.get('gt_ignore_flags', np.full(valid_mask.shape, False))
+                valid_mask = self.get_valid_mask(segments,
+                                                 np.array([[start_idx, end_idx]], dtype=np.float32),
+                                                 iof_thr=self.iof_thr,
+                                                 ignore_flags=results.get('gt_ignore_flags', np.full(segments.shape[0], False)))
                 if not valid_mask.any():
                     continue
 
