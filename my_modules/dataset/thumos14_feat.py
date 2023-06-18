@@ -22,7 +22,6 @@ class Thumos14FeatDataset(BaseDetDataset):
     def __init__(self,
                  feat_stride,  # feature are extracted every n frames
                  skip_short=False,  # skip too short annotations
-                 ambiguous=False,  # whether track ambiguous annotations. Set False if you are not going to use them.
                  fix_slice=True,
                  # whether slice the feature to windows with fixed stride or leave it to pipeline which perform random slice.
                  iof_thr=0.75,  # The Intersection over Foreground (IoF) threshold used to filter sliding windows
@@ -31,7 +30,6 @@ class Thumos14FeatDataset(BaseDetDataset):
                  **kwargs):
         self.feat_stride = feat_stride
         self.skip_short = skip_short
-        self.ambiguous = ambiguous
         self.fix_slice = fix_slice
         self.iof_thr = iof_thr
         self.window_size = window_size
@@ -66,8 +64,6 @@ class Thumos14FeatDataset(BaseDetDataset):
 
             if not self.fix_slice:
                 data_info.update(dict(feat=feat, feat_len=len(feat)))
-                if not self.ambiguous:
-                    data_info.pop('gt_ignore_flags')
                 data_list.append(data_info)
             else:
                 # Perform fixed-stride sliding window
@@ -100,8 +96,6 @@ class Thumos14FeatDataset(BaseDetDataset):
                         data_info.update(dict(segments=_segments,
                                               labels=_labels,
                                               gt_ignore_flags=_ignore_flags))
-                    if not self.ambiguous:
-                        data_info.pop('gt_ignore_flags')
                     data_list.append(deepcopy(data_info))
         return data_list
 
@@ -124,14 +118,13 @@ class Thumos14FeatDataset(BaseDetDataset):
             if segment[1] - segment[0] < 0.3 and self.skip_short:
                 print(f"too short segment annotation in {video_name}: {segment}, skipped")
 
-            # Skip ambiguous annotations or label them as ignored ground truth
+            # Ambiguous annotations are labeled as ignored ground truth
             if label == 'Ambiguous':
-                if self.ambiguous:
-                    segments.append(segment)
-                    labels.append(-1)
-                    ignore_flags.append(1)
+                labels.append(-1)
+                ignore_flags.append(True)
             else:
-                segments.append(segment)
                 labels.append(self.metainfo['classes'].index(label))
+                ignore_flags.append(False)
+            segments.append(segment)
 
-        return np.array(segments, np.float32), np.array(labels, np.int), np.array(ignore_flags, dtype=np.int)
+        return np.array(segments, np.float32), np.array(labels, np.int64), np.array(ignore_flags, dtype=bool)
