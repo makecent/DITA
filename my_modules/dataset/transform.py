@@ -123,7 +123,7 @@ class SlidingWindow(BaseTransform):
     def __init__(self,
                  window_size: int,  # the feature length input to the model
                  iof_thr=0.75,
-                 attempts=100):
+                 attempts=1000):
         self.window_size = window_size
         # Only windows with IoF (Intersection over Foreground) > iof_thr for at least one action are valid.
         self.iof_thr = iof_thr
