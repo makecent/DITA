@@ -47,6 +47,7 @@ val_dataloader = dict(
         feat_stride=8,
         window_size=128,
         window_stride=96,   # overlap=0.25
+        skip_wrong=True,
         data_prefix=dict(feat='features/thumos_feat_TadTR_64input_8stride_2048'),
         test_mode=True,
         pipeline=test_pipeline))

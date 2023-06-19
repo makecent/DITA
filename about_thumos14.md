@@ -31,25 +31,26 @@ mAP@[0.3:0.1:0.7] and their mean are often used to benchmark the performance.
 
 2. All 'CliffDiving' actions are also annotated as 'Diving' actions. I did NOT handle this as multi-label classification
    but simply adding two annotations that have same intervals but different labels, for both training and testing.
-3. video_validation_0000364 should be corrected, the last two annotations are out of range (greater than video
-   duration).
-   video_validation_0000856 should be corrected, the last two annotations are out of range.
-   video_test_0000814 should be corrected, the last three annotations are out of range.
-   video_test_0001081 should be corrected, the last one annotation is out of range.
-   *I found the remaining annotations in these videos to be correct upon manual inspection
+3. - video_validation_0000364 should be corrected, the last two annotations are out of range.
+   - video_validation_0000856 should be corrected, the last two annotations are out of range.
+   - video_test_0000814 should be corrected, the last three annotations are out of range.
+   - video_test_0001081 should be corrected, the last one annotation is out of range.
+   - "out of range" means that the annotated action location is greater than the video duration.
+   - I found the remaining annotations in these videos to be correct upon manual inspection
+   
 4. In validation set, there are (47, 16, 1, 0) actions shorter (<=) than (1.0, 0.5, 0.2, 0.1) seconds, respectively.
    In testing set, there are (50, 14, 0, 0) actions shorter (<=) than (1.0, 0.5, 0.2, 0.1) seconds, respectively.
    They were NOT handled and all kept as they are in my annotation file.
 
 5. video_validation_0000176[42:44] are strange, two segments have same start, different end, and different labels (5, 6)
    video_validation_0000184[13:15] are strange, two segments have same start, different end, and different labels (5, 6)
-   They were NOT handled and all kept as they are in my annotation file.
+
 6. video_test_0000270 may be wrong, most annotations are out of range. After manual checking, the whole annotation (29)
    should be dropped.
 7. video_test_0001496 was found to be wrong annotated by accident. The whole annotation (27) should be dropped.
 8. **These wrong annotations are all KEPT in my annotations file**, and you are encouraged to handle them during the
    loading. While the testing annotations should be kept if you want a fair comparison with other work. 
-9. The **video_test_0001292** is NOT in my annotation file although it was correctly annotated.
+9. **video_test_0001292** is NOT in my annotation file although it was correctly annotated.
 It's because it only contains 'Ambiguous' actions which make no effect on both training and testing.
 10. The performance of methods like SSN, PGCN, AFSD, MUSES and TadTR is reported after **REMOVING** any wrong testing annotations.
 To compare with them, you may also remove the wrong annotated testing annotations for fair comparison.

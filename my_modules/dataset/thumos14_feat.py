@@ -17,11 +17,13 @@ class Thumos14FeatDataset(BaseDetDataset):
     metainfo = dict(classes=('BaseballPitch', 'BasketballDunk', 'Billiards', 'CleanAndJerk',
                              'CliffDiving', 'CricketBowling', 'CricketShot', 'Diving', 'FrisbeeCatch', 'GolfSwing',
                              'HammerThrow', 'HighJump', 'JavelinThrow', 'LongJump', 'PoleVault', 'Shotput',
-                             'SoccerPenalty', 'TennisSwing', 'ThrowDiscus', 'VolleyballSpiking'))
+                             'SoccerPenalty', 'TennisSwing', 'ThrowDiscus', 'VolleyballSpiking'),
+                    wrong_videos=('video_test_0000270', 'video_test_0001292', 'video_test_0001496'))
 
     def __init__(self,
                  feat_stride,  # feature are extracted every n frames
                  skip_short=False,  # skip too short annotations
+                 skip_wrong=False,  # skip videos that are wrong annotated
                  fix_slice=True,
                  # whether slice the feature to windows with fixed stride or leave it to pipeline which perform random slice.
                  iof_thr=0.75,  # The Intersection over Foreground (IoF) threshold used to filter sliding windows
@@ -30,6 +32,7 @@ class Thumos14FeatDataset(BaseDetDataset):
                  **kwargs):
         self.feat_stride = feat_stride
         self.skip_short = skip_short
+        self.skip_wrong = skip_wrong
         self.fix_slice = fix_slice
         self.iof_thr = iof_thr
         self.window_size = window_size
@@ -43,6 +46,8 @@ class Thumos14FeatDataset(BaseDetDataset):
         data_list = []
         ann_file = mmengine.load(self.ann_file)
         for video_name, video_info in ann_file.items():
+            if self.skip_wrong and video_name in self.metainfo['wrong_videos']:
+                continue
             # Parsing ground truth
             segments, labels, ignore_flags = self.parse_labels(video_name, video_info)
 
