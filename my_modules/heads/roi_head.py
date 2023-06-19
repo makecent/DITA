@@ -67,7 +67,6 @@ class MyRoIHead(BaseModule):
                                                                     **head_inputs_dict)
         if self.active:
             actionness_pred = self.actionness_forward(memory, bbox_pred, batch_data_samples)
-
             actionness_target = self.get_actionness_target(bbox_pred, batch_data_samples)
             actionness_loss = self.actionness_loss(actionness_pred.reshape(-1),
                                                    torch.cat(actionness_target, 0))

@@ -100,6 +100,7 @@ class Thumos14FeatDataset(BaseDetDataset):
                                               labels=labels_f,
                                               gt_ignore_flags=ignore_flags_f))
                     data_list.append(deepcopy(data_info))
+        print(f"number of feature windows:\t {len(data_list)}")
         return data_list
 
     def parse_labels(self, video_name, video_info):
