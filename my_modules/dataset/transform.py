@@ -72,8 +72,8 @@ def segment_overlaps(segments1,
         assert rows == cols
 
     if rows * cols == 0:
-        return segments1.new(rows, 1) if is_aligned else segments2.new(
-            rows, cols)
+        ious = segments1.new(rows, 1) if is_aligned else segments2.new(rows, cols)
+        return ious.numpy() if is_numpy else ious
 
     if is_aligned:
         start = torch.max(segments1[:, 0], segments2[:, 0])  # [rows]
@@ -159,7 +159,8 @@ class SlidingWindow(BaseTransform):
                 valid_mask = self.get_valid_mask(segments,
                                                  np.array([[start_idx, end_idx]], dtype=np.float32),
                                                  iof_thr=self.iof_thr,
-                                                 ignore_flags=results.get('gt_ignore_flags', np.full(segments.shape[0], False)))
+                                                 ignore_flags=results.get('gt_ignore_flags',
+                                                                          np.full(segments.shape[0], False)))
                 if not valid_mask.any():
                     continue
 
@@ -193,6 +194,10 @@ class ReFormat(BaseTransform):
         gt_bboxes = np.insert(results['segments'], 2, 0.9, axis=-1)
         gt_bboxes = np.insert(gt_bboxes, 1, 0.1, axis=-1)
         results['gt_bboxes'] = gt_bboxes
+        if 'overlap' in results and results['overlap'].size > 0:
+            overlap = np.insert(results['overlap'], 2, 0.9, axis=-1)
+            overlap = np.insert(overlap, 1, 0.1, axis=-1)
+            results['overlap'] = overlap
 
         results.update({'gt_bboxes_labels': results.pop('labels')})
         results.update({"img_id": results.pop("video_name")})

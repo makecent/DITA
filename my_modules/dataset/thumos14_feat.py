@@ -75,39 +75,44 @@ class Thumos14FeatDataset(BaseDetDataset):
                 data_list.append(data_info)
             else:
                 # Perform fixed-stride sliding window
-                feat_windows = [feat[i: i + self.window_size] for i in range(0, feat_len, self.window_stride)]
-                start_indexs = []
                 if self.tadtr_style:
                     # TadTR handles all the complete windows, and if applicable, plus one tail window that covers the remaining content
                     num_complete_windows = max(0, feat_len - self.window_size) // self.window_stride + 1
-                    feat_windows = feat_windows[:num_complete_windows]
-                    start_indexs.extend(np.arange(num_complete_windows) * self.window_stride)
+                    # feat_windows = feat_windows[:num_complete_windows]
+                    start_indices = np.arange(num_complete_windows) * self.window_stride
+                    end_indices = (start_indices + self.window_size).clip(max=feat_len)
                     # Handle the tail window
                     if (feat_len - self.window_size) % self.window_stride != 0 and feat_len > self.window_size:
                         tail_start = self.window_stride * num_complete_windows if self.test_mode else feat_len - self.window_size
-                        feat_windows.append(feat[tail_start:])
-                        start_indexs.append(tail_start)
+                        start_indices = np.append(start_indices, tail_start)
+                        end_indices = np.append(end_indices, feat_len)
                 else:
-                    start_indexs.extend(np.arange(len(feat_windows)) * self.window_stride)
+                    start_indices = np.arange(feat_len // self.window_stride + 1) * self.window_stride
+                    end_indices = (start_indices + self.window_size).clip(max=feat_len)
+                # Compute overlapped regions
+                overlapped_regions = np.array([[start_indices[i], end_indices[i-1]] for i in range(1, len(start_indices))])
+                overlapped_regions = overlapped_regions * self.feat_stride / data_info['fps']
 
-                for feat_window, start_idx in zip(feat_windows, start_indexs):
+                for start_idx, end_idx in zip(start_indices, end_indices):
+                    assert start_idx < end_idx <= feat_len, f"invalid {start_idx, end_idx, feat_len}"
+                    feat_window = feat[start_idx: end_idx]
                     feat_win_len = len(feat_window)
-                    end_idx = start_idx + feat_win_len
-                    assert end_idx <= feat_len
 
                     # Padding windows that are shorter than the target window size.
                     if feat_win_len < self.window_size:
                         feat_window = np.pad(feat_window,
                                              ((0, self.window_size - feat_win_len), (0, 0)),
                                              constant_values=0)
-                    data_info.update(dict(offset=start_idx,
-                                          feat_len=feat_win_len,  # before padding for computing the valid feature mask
+                    data_info.update(dict(feat_len=feat_win_len,  # before padding for computing the valid feature mask
                                           feat=feat_window))
 
-                    if not self.test_mode:
-                        # Convert the format of segment annotations from second-unit to feature-unit.
-                        segments_f = segments * data_info['fps'] / self.feat_stride
+                    # Convert the format of segment annotations from second-unit to feature-unit.
+                    segments_f = segments * data_info['fps'] / self.feat_stride
+                    if self.test_mode:
+                        data_info.update(dict(offset=start_idx, overlap=overlapped_regions))
+                    else:
                         # During the training, windows has no segment annotated are skipped
+                        # Also known as Integrity-based instance filtering (IBIF)
                         valid_mask = SlidingWindow.get_valid_mask(segments_f,
                                                                   np.array([[start_idx, end_idx]], dtype=np.float32),
                                                                   iof_thr=self.iof_thr,
@@ -121,6 +126,7 @@ class Thumos14FeatDataset(BaseDetDataset):
                         data_info.update(dict(segments=segments_f,
                                               labels=labels_f,
                                               gt_ignore_flags=ignore_flags_f))
+
                     data_list.append(deepcopy(data_info))
         print(f"number of feature windows:\t {len(data_list)}")
         return data_list

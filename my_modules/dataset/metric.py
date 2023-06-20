@@ -10,7 +10,7 @@ from mmdet.evaluation.metrics import VOCMetric
 from mmdet.registry import METRICS
 from mmengine.logging import MMLogger
 from mmengine.structures import InstanceData
-
+from mmdet.structures.bbox import bbox_overlaps
 
 @METRICS.register_module()
 class TH14Metric(VOCMetric):
@@ -41,6 +41,7 @@ class TH14Metric(VOCMetric):
             gt_ignore_instances = gt['ignored_instances']
             ann = dict(
                 video_name=gt['img_id'],    # for the purpose of future grouping detections of same video.
+                overlap=gt['overlap'],        # for the purpose of NMS on overlapped region in testing videos
                 labels=gt_instances['labels'].cpu().numpy(),
                 bboxes=gt_instances['bboxes'].cpu().numpy(),
                 bboxes_ignore=gt_ignore_instances.get('bboxes', torch.empty((0, 4))).cpu().numpy(),
@@ -78,8 +79,8 @@ class TH14Metric(VOCMetric):
         # to handle test video of long duration while keep a fine temporal granularity.
         # In this case, we need perform non-maximum suppression (NMS) to remove redundant detections.
         # This NMS, however, is NOT necessary when window stride >= window size, i.e., non-overlapped sliding window.
-        gts, preds = self.merge_results_of_same_video(gts, preds)
         logger.info(f'\n Concatenating the testing results ...')
+        gts, preds = self.merge_results_of_same_video(gts, preds)
         preds = self.non_maximum_suppression(preds)
         eval_results = OrderedDict()
         if self.metric == 'mAP':
@@ -129,6 +130,13 @@ class TH14Metric(VOCMetric):
         merged_preds_dict = dict()
         for this_gt, this_pred in zip(gts, preds):
             video_name = this_gt.pop('video_name')
+            # Computer the mask indicating that if a prediction is in the overlapped regions.
+            overlap_regions = this_gt.pop('overlap')
+            if overlap_regions.size == 0:
+                this_pred.in_overlap = np.zeros(this_pred.bboxes.shape[0], dtype=bool)
+            else:
+                this_pred.in_overlap = bbox_overlaps(this_pred.bboxes, torch.from_numpy(overlap_regions)).max(-1)[0] > 0
+
             merged_preds_dict.setdefault(video_name, []).append(this_pred)
             merged_gts_dict.setdefault(video_name, this_gt)  # the gt is video-wise thus no need concatenation
 
@@ -144,13 +152,19 @@ class TH14Metric(VOCMetric):
     def non_maximum_suppression(self, preds):
         preds_nms = []
         for pred_v in preds:
-            bboxes, keep_idxs = batched_nms(pred_v.bboxes,
-                                            pred_v.scores,
-                                            pred_v.labels,
-                                            nms_cfg=self.nms_cfg)
-            pred_v = pred_v[keep_idxs]
-            # some nms operation may reweight the score such as softnms
-            pred_v.scores = bboxes[:, -1]
+            if self.nms_cfg is not None and np.count_nonzero(pred_v.in_overlap) > 1:
+                # We only perform NMS on predictions that intersect with overlapped regions
+                _pred_v = pred_v[pred_v.in_overlap]
+                bboxes, keep_idxs = batched_nms(_pred_v.bboxes,
+                                                _pred_v.scores,
+                                                _pred_v.labels,
+                                                nms_cfg=self.nms_cfg)
+                _pred_v = _pred_v[keep_idxs]
+                # some nms operation may reweight the score such as softnms
+                _pred_v.scores = bboxes[:, -1]
+                pred_v = InstanceData.cat([_pred_v, pred_v[~pred_v.in_overlap]])
+            sort_idxs = pred_v.scores.argsort(descending=True)
+            pred_v = pred_v[sort_idxs]
             # keep top-k predictions
             pred_v = pred_v[:self.max_per_video]
 
