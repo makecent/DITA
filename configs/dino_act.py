@@ -20,7 +20,7 @@ lr = 0.0002             # 1e-4, 2e-4
 
 # model setting
 model = dict(
-    type='DINO',
+    type='CustomDINO',
     num_queries=40,  # num_matching_queries, should be smaller than the window size
     with_box_refine=True,
     as_two_stage=True,
@@ -62,17 +62,33 @@ model = dict(
         offset=0.0,  # -0.5 for DeformDETR
         temperature=temperature),  # 10000 for DeformDETR
     bbox_head=dict(
-        type='DINOHead',
-        num_classes=20,
-        sync_cls_avg_factor=True,
-        loss_cls=dict(
-            type='FocalLoss',
-            use_sigmoid=True,
-            gamma=2.0,
-            alpha=0.25,
-            loss_weight=cls_loss_coef),  # 2.0 in DeformDETR
-        loss_bbox=dict(type='L1Loss', loss_weight=seg_loss_coef),
-        loss_iou=dict(type='GIoULoss', loss_weight=iou_loss_coef)),
+        type='MyRoIHead',
+        bbox_roi_extractor=dict(
+            type='GenericRoIExtractor',
+            aggregation='sum',
+            roi_layer=dict(
+                type='RoIAlign',
+                output_size=(1, 16),
+                sampling_ratio=0,
+                aligned=True),
+            out_channels=256,
+            featmap_strides=[1],
+            pre_cfg=None,
+            post_cfg=None),
+        expand_roi_factor=1.5,
+        actionness_loss=dict(type='L1Loss', loss_weight=act_loss_coef),
+        bbox_head=dict(
+            type='CustomDINOHead',
+            num_classes=20,
+            sync_cls_avg_factor=True,
+            loss_cls=dict(
+                type='FocalLoss',
+                use_sigmoid=True,
+                gamma=2.0,
+                alpha=0.25,
+                loss_weight=cls_loss_coef),  # 2.0 in DeformDETR
+            loss_bbox=dict(type='L1Loss', loss_weight=seg_loss_coef),
+            loss_iou=dict(type='GIoULoss', loss_weight=iou_loss_coef))),
     dn_cfg=dict(  # TODO: Move to model.train_cfg ?
         label_noise_scale=0.5,
         box_noise_scale=0.4,  # 0.4 for DN-DETR
