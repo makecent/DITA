@@ -26,7 +26,8 @@ class Thumos14FeatDataset(BaseDetDataset):
                  skip_wrong=False,  # skip videos that are wrong annotated
                  fix_slice=True,
                  # whether slice the feature to windows with fixed stride or leave it to pipeline which perform random slice.
-                 iof_thr=0.75,  # The Intersection over Foreground (IoF) threshold used to filter sliding windows
+                 tadtr_style=True,  # whether slice the feature in a TadTR style.
+                 iof_thr=0.75,  # The Intersection over Foreground (IoF) threshold used to filter sliding windows.
                  window_size=None,  # only applicable to testing phase, should be equal to the training window size.
                  window_stride=None,  # only applicable to testing phase, the fixed window stride in testing.
                  **kwargs):
@@ -34,6 +35,7 @@ class Thumos14FeatDataset(BaseDetDataset):
         self.skip_short = skip_short
         self.skip_wrong = skip_wrong
         self.fix_slice = fix_slice
+        self.tadtr_style = tadtr_style
         self.iof_thr = iof_thr
         self.window_size = window_size
         self.window_stride = window_stride
@@ -58,6 +60,7 @@ class Thumos14FeatDataset(BaseDetDataset):
             else:
                 warnings.warn(f"Cannot find feature file {str(feat_path)}, skipped")
                 continue
+            feat_len = len(feat)
 
             data_info = dict(video_name=video_name,
                              duration=float(video_info['duration']),
@@ -68,15 +71,29 @@ class Thumos14FeatDataset(BaseDetDataset):
                              gt_ignore_flags=ignore_flags)
 
             if not self.fix_slice:
-                data_info.update(dict(feat=feat, feat_len=len(feat)))
+                data_info.update(dict(feat=feat, feat_len=feat_len))
                 data_list.append(data_info)
             else:
                 # Perform fixed-stride sliding window
-                feat_windows = [feat[i: i + self.window_size] for i in range(0, len(feat), self.window_stride)]
-                for i, feat_window in enumerate(feat_windows):
-                    start_idx = float(i * self.window_stride)
+                feat_windows = [feat[i: i + self.window_size] for i in range(0, feat_len, self.window_stride)]
+                start_indexs = []
+                if self.tadtr_style:
+                    # TadTR handles all the complete windows, and if applicable, plus one tail window that covers the remaining content
+                    num_complete_windows = max(0, feat_len - self.window_size) // self.window_stride + 1
+                    feat_windows = feat_windows[:num_complete_windows]
+                    start_indexs.extend(np.arange(num_complete_windows) * self.window_stride)
+                    # Handle the tail window
+                    if (feat_len - self.window_size) % self.window_stride != 0 and feat_len > self.window_size:
+                        tail_start = self.window_stride * num_complete_windows if self.test_mode else feat_len - self.window_size
+                        feat_windows.append(feat[tail_start:])
+                        start_indexs.append(tail_start)
+                else:
+                    start_indexs.extend(np.arange(len(feat_windows)) * self.window_stride)
+
+                for feat_window, start_idx in zip(feat_windows, start_indexs):
                     feat_win_len = len(feat_window)
-                    end_idx = start_idx + feat_win_len - 1
+                    end_idx = start_idx + feat_win_len
+                    assert end_idx <= feat_len
 
                     # Padding windows that are shorter than the target window size.
                     if feat_win_len < self.window_size:
@@ -117,7 +134,7 @@ class Thumos14FeatDataset(BaseDetDataset):
         for segment, label in zip(video_info['segments'], video_info['labels']):
 
             # Skip annotations that are out of range.
-            if not (0 <= segment[0] < segment[1] <= video_duration):
+            if not (0 <= segment[0] < segment[1] <= video_duration) and self.skip_wrong:
                 print(f"invalid segment annotation in {video_name}: {segment}, duration={video_duration}, skipped")
                 continue
 

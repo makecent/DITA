@@ -30,6 +30,7 @@ train_dataloader = dict(
         window_stride=32,  # overlap=0.75
         iof_thr=0.75,
         skip_short=True,
+        skip_wrong=True,
         data_prefix=dict(feat='features/thumos_feat_TadTR_64input_8stride_2048'),
         filter_cfg=dict(filter_empty_gt=False),
         pipeline=train_pipeline))
@@ -47,6 +48,7 @@ val_dataloader = dict(
         feat_stride=8,
         window_size=128,
         window_stride=96,  # overlap=0.25
+        skip_short=False,
         skip_wrong=True,
         data_prefix=dict(feat='features/thumos_feat_TadTR_64input_8stride_2048'),
         test_mode=True,
