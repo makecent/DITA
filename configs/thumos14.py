@@ -27,7 +27,7 @@ train_dataloader = dict(
         fix_slice=True,
         feat_stride=8,
         window_size=128,
-        window_stride=32,   # overlap=0.75
+        window_stride=32,  # overlap=0.75
         iof_thr=0.75,
         skip_short=True,
         data_prefix=dict(feat='features/thumos_feat_TadTR_64input_8stride_2048'),
@@ -46,7 +46,7 @@ val_dataloader = dict(
         fix_slice=True,
         feat_stride=8,
         window_size=128,
-        window_stride=96,   # overlap=0.25
+        window_stride=96,  # overlap=0.25
         skip_wrong=True,
         data_prefix=dict(feat='features/thumos_feat_TadTR_64input_8stride_2048'),
         test_mode=True,
@@ -57,6 +57,6 @@ val_evaluator = dict(
     type='TH14Metric',
     metric='mAP',
     iou_thrs=[0.3, 0.4, 0.5, 0.6, 0.7],
-    nms_cfg=dict(type='nms', iou_thr=0.4),
-    max_per_video=100)
+    nms_cfg=dict(type='nms', iou_thr=0.4),  # 0.4 for TadTR
+    max_per_video=100)  # 100 for TadTR
 test_evaluator = val_evaluator

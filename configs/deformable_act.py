@@ -58,13 +58,15 @@ model = dict(
             cross_attn_cfg=dict(
                 embed_dims=256,
                 num_levels=1,
+                dropout=dropout,
                 batch_first=True),
             ffn_cfg=dict(
                 embed_dims=256,
                 feedforward_channels=dim_feedforward,
                 ffn_drop=dropout)),
         post_norm_cfg=None),
-    positional_encoding=dict(num_feats=128, normalize=True, offset=-0.5, temperature=temperature),
+    # num_feats=128, offset=-0.5 for DeformableDETR, but 256, 0 for TadTR, we cannot set to 256 because of y-axis
+    positional_encoding=dict(num_feats=128, normalize=True, offset=0, temperature=temperature),
     bbox_head=dict(
         type='MyRoIHead',
         bbox_roi_extractor=dict(
@@ -92,15 +94,15 @@ model = dict(
                 alpha=0.25,
                 loss_weight=cls_loss_coef),
             loss_bbox=dict(type='L1Loss', loss_weight=seg_loss_coef),
-            loss_iou=dict(type='GIoULoss', loss_weight=iou_loss_coef))),
+            loss_iou=dict(type='IoULoss', loss_weight=iou_loss_coef))),  # GIoU for DeformableDETR
     # training and testing settings
     train_cfg=dict(
         assigner=dict(
             type='HungarianAssigner',
             match_costs=[
-                dict(type='FocalLossCost', weight=2.0),
+                dict(type='FocalLossCost', weight=6.0),  # 2.0 for DeformableDETR
                 dict(type='BBoxL1Cost', weight=5.0, box_format='xywh'),
-                dict(type='IoUCost', iou_mode='giou', weight=2.0)
+                dict(type='IoUCost', iou_mode='iou', weight=2.0)  # GIoU for DeformableDETR
             ])),
     test_cfg=dict(max_per_img=max_per_img))
 
@@ -123,9 +125,9 @@ optim_wrapper = dict(
 # learning policy
 # TadTR uses 30 epochs, but since we use random sliding windows rather than fixed overlapping windows,
 # we should increase the number of epochs to maximize utilization of the video content.
-max_epochs = 80
+max_epochs = 16  # 16 for TadTR
 train_cfg = dict(
-    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=5)
+    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)  # 1 for TadTR
 
 val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
@@ -136,7 +138,7 @@ param_scheduler = [
         begin=0,
         end=max_epochs,
         by_epoch=True,
-        milestones=[70],
+        milestones=[14],  # 14 for TadTR
         gamma=0.1)
 ]
 
