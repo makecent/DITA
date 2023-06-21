@@ -23,7 +23,7 @@ model = dict(
     type='CustomDeformableDETR',
     num_queries=40,  # num_matching_queries, should be smaller than the window size
     with_box_refine=True,
-    as_two_stage=True,
+    as_two_stage=False,  # True for DeformableDETR
     num_feature_levels=1,
     data_preprocessor=dict(type='DetDataPreprocessor'),
     backbone=dict(type='PseudoBackbone'),  # No backbone since we use pre-extracted features.
@@ -150,7 +150,7 @@ auto_scale_lr = dict(base_batch_size=16)
 default_scope = 'mmdet'
 default_hooks = dict(
     timer=dict(type='IterTimerHook'),
-    logger=dict(type='LoggerHook', interval=10),
+    logger=dict(type='LoggerHook', interval=10, log_metric_by_epoch=True),
     param_scheduler=dict(type='ParamSchedulerHook'),
     checkpoint=dict(type='CheckpointHook', interval=10),
     sampler_seed=dict(type='DistSamplerSeedHook'),

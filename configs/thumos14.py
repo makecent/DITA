@@ -5,7 +5,10 @@ data_root = 'my_data/thumos14/'
 train_pipeline = [
     # dict(type='SlidingWindow', window_size=128, iof_thr=0.75),
     dict(type='ReFormat'),
-    dict(type='PackDetInputs')
+    dict(type='PackDetInputs',
+         meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
+                    'scale_factor', 'flip', 'flip_direction',
+                    'fps', 'feat_stride', 'offset', 'overlap'))
 ]
 test_pipeline = [
     dict(type='ReFormat'),

@@ -90,7 +90,8 @@ class Thumos14FeatDataset(BaseDetDataset):
                     start_indices = np.arange(feat_len // self.window_stride + 1) * self.window_stride
                     end_indices = (start_indices + self.window_size).clip(max=feat_len)
                 # Compute overlapped regions
-                overlapped_regions = np.array([[start_indices[i], end_indices[i-1]] for i in range(1, len(start_indices))])
+                overlapped_regions = np.array(
+                    [[start_indices[i], end_indices[i - 1]] for i in range(1, len(start_indices))])
                 overlapped_regions = overlapped_regions * self.feat_stride / data_info['fps']
 
                 for start_idx, end_idx in zip(start_indices, end_indices):
@@ -103,13 +104,14 @@ class Thumos14FeatDataset(BaseDetDataset):
                         feat_window = np.pad(feat_window,
                                              ((0, self.window_size - feat_win_len), (0, 0)),
                                              constant_values=0)
-                    data_info.update(dict(feat_len=feat_win_len,  # before padding for computing the valid feature mask
+                    data_info.update(dict(offset=start_idx,
+                                          feat_len=feat_win_len,  # before padding for computing the valid feature mask
                                           feat=feat_window))
 
                     # Convert the format of segment annotations from second-unit to feature-unit.
                     segments_f = segments * data_info['fps'] / self.feat_stride
                     if self.test_mode:
-                        data_info.update(dict(offset=start_idx, overlap=overlapped_regions))
+                        data_info.update(dict(overlap=overlapped_regions))
                     else:
                         # During the training, windows has no segment annotated are skipped
                         # Also known as Integrity-based instance filtering (IBIF)
