@@ -94,7 +94,7 @@ model = dict(
                 alpha=0.25,
                 loss_weight=cls_loss_coef),
             loss_bbox=dict(type='CustomL1Loss', loss_weight=seg_loss_coef),
-            loss_iou=dict(type='CustomIoULoss', loss_weight=iou_loss_coef))),  # GIoU for DeformableDETR
+            loss_iou=dict(type='CustomIoULoss', mode='linear', loss_weight=iou_loss_coef))),  # -log(GIoU) for DeformableDETR
     # training and testing settings
     train_cfg=dict(
         assigner=dict(
