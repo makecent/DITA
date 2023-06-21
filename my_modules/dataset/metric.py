@@ -124,6 +124,8 @@ class TH14Metric(VOCMetric):
 
     @staticmethod
     def merge_results_of_same_video(gts, preds):
+        # Merge prediction results from the same videos because we use sliding windows to crop the testing videos
+        # Also known as the Cross-Window Fusion (CWF)
         video_names = list(dict.fromkeys([gt['video_name'] for gt in gts]))
 
         merged_gts_dict = dict()

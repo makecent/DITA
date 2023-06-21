@@ -75,16 +75,16 @@ model = dict(
             gamma=2.0,
             alpha=0.25,
             loss_weight=cls_loss_coef),
-        loss_bbox=dict(type='L1Loss', loss_weight=seg_loss_coef),
-        loss_iou=dict(type='GIoULoss', loss_weight=iou_loss_coef)),
+        loss_bbox=dict(type='CustomL1Loss', loss_weight=seg_loss_coef),  # customized to ignore y1, y2
+        loss_iou=dict(type='CustomGIoULoss', loss_weight=iou_loss_coef)),  # customized to ignore y1, y2
     # training and testing settings
     train_cfg=dict(
         assigner=dict(
             type='HungarianAssigner',
             match_costs=[
                 dict(type='FocalLossCost', weight=2.0),
-                dict(type='BBoxL1Cost', weight=5.0, box_format='xywh'),
-                dict(type='IoUCost', iou_mode='giou', weight=2.0)
+                dict(type='CustomBBoxL1Cost', weight=5.0, box_format='xywh'),  # customized to ignore y1, y2
+                dict(type='CustomIoUCost', iou_mode='giou', weight=2.0)  # customized to ignore y1, y2
             ])),
     test_cfg=dict(max_per_img=max_per_img))
 
@@ -107,9 +107,9 @@ optim_wrapper = dict(
 # learning policy
 # TadTR uses 30 epochs, but since we use random sliding windows rather than fixed overlapping windows,
 # we should increase the number of epochs to maximize utilization of the video content.
-max_epochs = 80
+max_epochs = 16  # 16 for TadTR
 train_cfg = dict(
-    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=5)
+    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)  # 1 for TadTR
 
 val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
@@ -120,7 +120,7 @@ param_scheduler = [
         begin=0,
         end=max_epochs,
         by_epoch=True,
-        milestones=[70],
+        milestones=[14],  # 14 for TadTR
         gamma=0.1)
 ]
 

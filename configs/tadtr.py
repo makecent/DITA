@@ -93,16 +93,16 @@ model = dict(
                 gamma=2.0,
                 alpha=0.25,
                 loss_weight=cls_loss_coef),
-            loss_bbox=dict(type='L1Loss', loss_weight=seg_loss_coef),
-            loss_iou=dict(type='IoULoss', loss_weight=iou_loss_coef))),  # GIoU for DeformableDETR
+            loss_bbox=dict(type='CustomL1Loss', loss_weight=seg_loss_coef),
+            loss_iou=dict(type='CustomIoULoss', loss_weight=iou_loss_coef))),  # GIoU for DeformableDETR
     # training and testing settings
     train_cfg=dict(
         assigner=dict(
             type='HungarianAssigner',
             match_costs=[
                 dict(type='FocalLossCost', weight=6.0),  # 2.0 for DeformableDETR
-                dict(type='BBoxL1Cost', weight=5.0, box_format='xywh'),
-                dict(type='IoUCost', iou_mode='iou', weight=2.0)  # GIoU for DeformableDETR
+                dict(type='CustomBBoxL1Cost', weight=5.0, box_format='xywh'),
+                dict(type='CustomIoUCost', iou_mode='iou', weight=2.0)  # GIoU for DeformableDETR
             ])),
     test_cfg=dict(max_per_img=max_per_img))
 
