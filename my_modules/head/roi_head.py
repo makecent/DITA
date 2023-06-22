@@ -62,15 +62,20 @@ class MyRoIHead(BaseModule):
 
     def loss(self, batch_data_samples: List[DetDataSample], **head_inputs_dict) -> dict:
         memory = head_inputs_dict.pop('memory')
-        bbox_head_loss, bbox_pred = self.bbox_head.loss_and_predict(batch_data_samples=batch_data_samples,
-                                                                    rescale=False,
-                                                                    **head_inputs_dict)
+
         if self.active:
+            bbox_head_loss, bbox_pred = self.bbox_head.loss_and_predict(batch_data_samples=batch_data_samples,
+                                                                        rescale=False,
+                                                                        **head_inputs_dict)
             actionness_pred = self.actionness_forward(memory, bbox_pred, batch_data_samples)
             actionness_target = self.get_actionness_target(bbox_pred, batch_data_samples)
             actionness_loss = self.actionness_loss(actionness_pred.reshape(-1),
                                                    torch.cat(actionness_target, 0))
             bbox_head_loss.update(dict(actionness_loss=actionness_loss))
+        else:
+            bbox_head_loss = self.bbox_head.loss(batch_data_samples=batch_data_samples,
+                                                 rescale=False,
+                                                 **head_inputs_dict)
 
         return bbox_head_loss
 
@@ -86,11 +91,6 @@ class MyRoIHead(BaseModule):
         return self.post_process(bbox_pred, actionness_pred, batch_data_samples, rescale)
 
     def actionness_forward(self, memory, bbox_pred, batch_data_samples):
-        # Fix the y1, y2
-        for res, data_sample in zip(bbox_pred, batch_data_samples):
-            res.bboxes[:, 1] = 0.1
-            res.bboxes[:, 3] = 0.9
-
         # Expand the range of (x1, x2)
         ex_bbox_pred = [res.bboxes.clone().detach() for res in bbox_pred]
         for bboxes, data_sample in zip(ex_bbox_pred, batch_data_samples):
