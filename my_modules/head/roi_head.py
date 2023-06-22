@@ -74,7 +74,6 @@ class MyRoIHead(BaseModule):
             bbox_head_loss.update(dict(actionness_loss=actionness_loss))
         else:
             bbox_head_loss = self.bbox_head.loss(batch_data_samples=batch_data_samples,
-                                                 rescale=False,
                                                  **head_inputs_dict)
 
         return bbox_head_loss
