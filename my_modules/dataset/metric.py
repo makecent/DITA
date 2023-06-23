@@ -137,7 +137,7 @@ class TH14Metric(VOCMetric):
             if overlap_regions.size == 0:
                 this_pred.in_overlap = np.zeros(this_pred.bboxes.shape[0], dtype=bool)
             else:
-                this_pred.in_overlap = bbox_overlaps(this_pred.bboxes, torch.from_numpy(overlap_regions)).max(-1)[0] > 0
+                this_pred.in_overlap = bbox_overlaps(this_pred.bboxes, torch.from_numpy(overlap_regions)) > 0
 
             merged_preds_dict.setdefault(video_name, []).append(this_pred)
             merged_gts_dict.setdefault(video_name, this_gt)  # the gt is video-wise thus no need concatenation
@@ -154,17 +154,25 @@ class TH14Metric(VOCMetric):
     def non_maximum_suppression(self, preds):
         preds_nms = []
         for pred_v in preds:
-            if self.nms_cfg is not None and np.count_nonzero(pred_v.in_overlap) > 1:
-                # We only perform NMS on predictions that intersect with overlapped regions
-                _pred_v = pred_v[pred_v.in_overlap]
-                bboxes, keep_idxs = batched_nms(_pred_v.bboxes,
-                                                _pred_v.scores,
-                                                _pred_v.labels,
-                                                nms_cfg=self.nms_cfg)
-                _pred_v = _pred_v[keep_idxs]
-                # some nms operation may reweight the score such as softnms
-                _pred_v.scores = bboxes[:, -1]
-                pred_v = InstanceData.cat([_pred_v, pred_v[~pred_v.in_overlap]])
+            if self.nms_cfg is not None and pred_v.in_overlap.sum() > 1:
+                # We only perform NMS on predictions in each overlapped region
+                # TODO: Improve: 1. NMS globally 2. NMS all overlap regions once 3. NMS threshold 4. NMS type
+                pred_not_in_overlaps = pred_v[~pred_v.in_overlap.max(-1)[0]]
+                pred_in_overlaps = []
+                for i in range(pred_v.in_overlap.shape[1]):
+                    pred_in_overlap = pred_v[pred_v.in_overlap[:, i]]
+                    if len(pred_in_overlap) == 0:
+                        continue
+                    bboxes, keep_idxs = batched_nms(pred_in_overlap.bboxes,
+                                                    pred_in_overlap.scores,
+                                                    pred_in_overlap.labels,
+                                                    nms_cfg=self.nms_cfg)
+                    pred_in_overlap = pred_in_overlap[keep_idxs]
+                    # some nms operation may reweight the score such as softnms
+                    pred_in_overlap.scores = bboxes[:, -1]
+
+                    pred_in_overlaps.append(pred_in_overlap)
+                pred_v = InstanceData.cat(pred_in_overlaps + [pred_not_in_overlaps])
             sort_idxs = pred_v.scores.argsort(descending=True)
             pred_v = pred_v[sort_idxs]
             # keep top-k predictions
