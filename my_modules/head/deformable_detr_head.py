@@ -6,7 +6,7 @@ from mmdet.structures import SampleList
 from mmdet.utils import InstanceList
 from torch import nn, Tensor
 
-from .pseudo_4d_fc import Pseudo4DLinear
+from my_modules.layers.pseudo_layers import Pseudo4DLinear
 
 
 @MODELS.register_module()

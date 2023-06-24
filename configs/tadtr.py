@@ -164,6 +164,7 @@ env_cfg = dict(
 
 vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend'),
                 dict(type='WandbVisBackend', init_kwargs=dict(project='TAD_DINO'))]
+# vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
 visualizer = dict(
     type='DetLocalVisualizer', vis_backends=vis_backends, name='visualizer')
 log_processor = dict(type='LogProcessor', window_size=50, by_epoch=True)

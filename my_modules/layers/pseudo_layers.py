@@ -25,3 +25,21 @@ class Pseudo4DLinear(nn.Linear):
             y2 = torch.full_like(x[..., :1], 0.9)
             x = torch.cat((x[..., :1], y1, x[..., 1:], y2), dim=-1)
         return x
+
+
+class Pseudo2DSamplingFC(nn.Linear):
+    """
+    This is a pseudo linear layer whose out_dimension is 4 but the inner linear computation
+    actually is computed based on out_dimension=2.
+    Note that our computation is based on that the default y1, y2 are 0.1 and 0.9, respectively.
+    """
+
+    def forward(self, x: torch.Tensor):
+        x = super().forward(x)
+
+        # Interleave the output values with zeros (the offsets on y-axis)
+        reshaped_output = x.view(-1, 1)
+        zeros_tensor = torch.zeros_like(reshaped_output)
+        interleaved_output = torch.cat((reshaped_output, zeros_tensor), dim=1)
+        x = interleaved_output.view(*x.shape, 2)
+        return x
