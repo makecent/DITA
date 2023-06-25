@@ -80,6 +80,9 @@ class MyRoIHead(BaseModule):
 
     def predict(self, batch_data_samples: List[DetDataSample], rescale, **head_inputs_dict) -> InstanceList:
         memory = head_inputs_dict.pop('memory')
+        # TODO: for debug purpose, delete it:
+        head_inputs_dict.pop('enc_outputs_class')
+        head_inputs_dict.pop('enc_outputs_coord')
         bbox_pred = self.bbox_head.predict(batch_data_samples=batch_data_samples,
                                            rescale=False,
                                            **head_inputs_dict)
