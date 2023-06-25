@@ -53,28 +53,3 @@ class CustomDeformableDETR(DeformableDETR):
         mlvl_memory = torch.tensor_split(memory.transpose(1, 2).unsqueeze(2), level_start_index[1:], dim=-1)
         head_inputs_dict['memory'] = mlvl_memory
         return head_inputs_dict
-
-    # TODO: below if for debugging purpose, delete them once completed.
-    def forward(self,
-                inputs: torch.Tensor,
-                data_samples: OptSampleList = None,
-                mode: str = 'tensor'):
-        if mode == 'loss':
-            # For debugging purpose
-            self.eval()
-            return self.loss(inputs, data_samples)
-        elif mode == 'predict':
-            return self.predict(inputs, data_samples)
-        elif mode == 'tensor':
-            return self._forward(inputs, data_samples)
-        else:
-            raise RuntimeError(f'Invalid mode "{mode}". '
-                               'Only supports loss, predict and tensor mode')
-
-    def pre_decoder(self, memory: Tensor, memory_mask: Tensor,
-                    spatial_shapes: Tensor) -> Tuple[Dict, Dict]:
-        decoder_inputs_dict, head_inputs_dict = super().pre_decoder(memory, memory_mask, spatial_shapes)
-        head_inputs_dict = dict(
-            enc_outputs_class=None,
-            enc_outputs_coord=None)
-        return decoder_inputs_dict, head_inputs_dict
