@@ -8,6 +8,7 @@ from mmdet.registry import MODELS
 from mmdet.structures import OptSampleList
 from torch import Tensor
 from my_modules.loss.positional_encoding import PositionEmbeddingSine
+from my_modules.layers.pseudo_layers import Pseudo2DLinear
 from ..layers import CustomDeformableDetrTransformerDecoder, CustomDeformableDetrTransformerEncoder
 
 
@@ -28,6 +29,8 @@ class CustomDeformableDETR(DeformableDETR):
         self.decoder = CustomDeformableDetrTransformerDecoder(**dec_cfg)
         self.positional_encoding = PositionEmbeddingSine(
             **pos_cfg)
+        if not self.as_two_stage:
+            self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1)
 
     def forward_transformer(self,
                             img_feats: Tuple[Tensor],

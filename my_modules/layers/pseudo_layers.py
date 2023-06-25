@@ -27,7 +27,7 @@ class Pseudo4DLinear(nn.Linear):
         return x
 
 
-class Pseudo2DSamplingFC(nn.Linear):
+class Pseudo2DLinear(nn.Linear):
     """
     This is a pseudo linear layer whose out_dimension is 4 but the inner linear computation
     actually is computed based on out_dimension=2.
@@ -41,5 +41,5 @@ class Pseudo2DSamplingFC(nn.Linear):
         reshaped_output = x.view(-1, 1)
         zeros_tensor = torch.zeros_like(reshaped_output)
         interleaved_output = torch.cat((reshaped_output, zeros_tensor), dim=1)
-        x = interleaved_output.view(*x.shape, 2)
+        x = interleaved_output.view(*x.shape[:-1], x.shape[-1]*2)
         return x

@@ -13,7 +13,7 @@ from mmdet.models.layers import DeformableDetrTransformerEncoder, DeformableDetr
 from mmengine.model import ModuleList
 from mmengine.model import constant_init, xavier_init
 
-from my_modules.layers.pseudo_layers import Pseudo2DSamplingFC
+from my_modules.layers.pseudo_layers import Pseudo2DLinear
 
 
 def zero_y_reference_points(forward_method):
@@ -81,7 +81,7 @@ class CustomMultiScaleDeformableAttention(MultiScaleDeformableAttention):
         self.num_heads = num_heads
         self.num_points = num_points
         # Change the sampling_offsets layer to only output x offsets. The y offsets are fixed to be zeros.
-        self.sampling_offsets = Pseudo2DSamplingFC(
+        self.sampling_offsets = Pseudo2DLinear(
             self.embed_dims, self.num_heads * self.num_levels * self.num_points)
         self.attention_weights = nn.Linear(embed_dims,
                                            num_heads * num_levels * num_points)
