@@ -39,7 +39,7 @@ def py_sigmoid_focal_loss(inputs, targets, weight, alpha: float = 0.25, gamma: f
     return loss.view(-1, 40, 20).mean(1).sum() / avg_factor * 40
 
 
-# @MODELS.register_module(force=True)
+@MODELS.register_module(force=True)
 class FocalLoss(nn.Module):
 
     def __init__(self,

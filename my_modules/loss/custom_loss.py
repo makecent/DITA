@@ -1,5 +1,5 @@
-from mmdet.models.losses import L1Loss, GIoULoss
-from my_modules.loss.debug_loss import IoULoss
+from mmdet.models.losses import L1Loss, GIoULoss, IoULoss
+# from my_modules.loss.debug_loss import IoULoss
 from mmdet.models.task_modules import IoUCost, BBoxL1Cost
 from mmdet.registry import MODELS, TASK_UTILS
 from mmengine.structures import InstanceData

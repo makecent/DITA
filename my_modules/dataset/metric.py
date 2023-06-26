@@ -10,7 +10,7 @@ from mmdet.registry import METRICS
 from mmdet.structures.bbox import bbox_overlaps
 from mmengine.logging import MMLogger
 from mmengine.structures import InstanceData
-from mmcv.ops import batched_nms
+
 
 @METRICS.register_module()
 class TH14Metric(VOCMetric):
@@ -170,7 +170,6 @@ class TH14Metric(VOCMetric):
                     # pred_in_overlap = pred_in_overlap[keep_idxs]
                     # # some nms operation may reweight the score such as softnms
                     # pred_in_overlap.scores = bboxes[:, -1]
-
                     from .tadtr_nms import apply_nms
                     pred_in_overlap = apply_nms(
                         np.concatenate((pred_in_overlap.bboxes,
