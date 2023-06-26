@@ -170,6 +170,7 @@ class TH14Metric(VOCMetric):
                     pred_in_overlap = pred_in_overlap[keep_idxs]
                     # some nms operation may reweight the score such as softnms
                     pred_in_overlap.scores = bboxes[:, -1]
+
                     # from .tadtr_nms import apply_nms
                     # pred_in_overlap = apply_nms(
                     #     np.concatenate((pred_in_overlap.bboxes,
@@ -181,7 +182,7 @@ class TH14Metric(VOCMetric):
                     #                                scores=torch.from_numpy(pred_in_overlap[:, 4]),
                     #                                labels=torch.from_numpy(pred_in_overlap[:, 5].astype(int)))
                     pred_in_overlaps.append(pred_in_overlap)
-                pred_not_in_overlaps.pop('in_overlap')
+                # pred_not_in_overlaps.pop('in_overlap')
                 pred_v = InstanceData.cat(pred_in_overlaps + [pred_not_in_overlaps])
             sort_idxs = pred_v.scores.argsort(descending=True)
             pred_v = pred_v[sort_idxs]
