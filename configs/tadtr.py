@@ -114,8 +114,8 @@ optim_wrapper = dict(
     type='OptimWrapper',
     optimizer=dict(
         type='AdamW',
-        lr=lr,
-        weight_decay=0.0001),
+        lr=1e-4,
+        weight_decay=0.05),   # 0.0001 by default
     clip_grad=dict(max_norm=0.1, norm_type=2),
     paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=0.1),
                                     'sampling_offsets': dict(lr_mult=0.1),
@@ -125,7 +125,7 @@ optim_wrapper = dict(
 # learning policy
 # TadTR uses 30 epochs, but since we use random sliding windows rather than fixed overlapping windows,
 # we should increase the number of epochs to maximize utilization of the video content.
-max_epochs = 32  # 16 for TadTR
+max_epochs = 30  # 16 for TadTR
 train_cfg = dict(
     type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)  # 1 for TadTR
 
@@ -133,13 +133,25 @@ val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
 
 param_scheduler = [
+    # dict(
+    #     type='MultiStepLR',
+    #     begin=0,
+    #     end=max_epochs,
+    #     by_epoch=True,
+    #     milestones=[28],  # 14 for TadTR
+    #     gamma=0.1),
     dict(
-        type='MultiStepLR',
-        begin=0,
-        end=max_epochs,
+        type='LinearLR',
         by_epoch=True,
-        milestones=[28],  # 14 for TadTR
-        gamma=0.1)
+        start_factor=0,
+        end=5,
+        convert_to_iter_based=True),
+    dict(
+        type='CosineAnnealingLR',
+        by_epoch=True,
+        T_max=25,
+        eta_min_ratio=0.01,
+        convert_to_iter_based=True)
 ]
 
 # NOTE: `auto_scale_lr` is for automatically scaling LR,
@@ -162,9 +174,9 @@ env_cfg = dict(
     dist_cfg=dict(backend='nccl'),
 )
 
-vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend'),
-                dict(type='WandbVisBackend', init_kwargs=dict(project='TAD_DINO'))]
-# vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
+# vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend'),
+#                 dict(type='WandbVisBackend', init_kwargs=dict(project='TAD_DINO'))]
+vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
 visualizer = dict(
     type='DetLocalVisualizer', vis_backends=vis_backends, name='visualizer')
 log_processor = dict(type='LogProcessor', window_size=50, by_epoch=True)
