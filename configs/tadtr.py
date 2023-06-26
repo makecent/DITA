@@ -123,9 +123,7 @@ optim_wrapper = dict(
                                     }))
 
 # learning policy
-# TadTR uses 30 epochs, but since we use random sliding windows rather than fixed overlapping windows,
-# we should increase the number of epochs to maximize utilization of the video content.
-max_epochs = 30  # 16 for TadTR
+max_epochs = 16  # 16 for TadTR
 train_cfg = dict(
     type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)  # 1 for TadTR
 
@@ -138,18 +136,18 @@ param_scheduler = [
     #     begin=0,
     #     end=max_epochs,
     #     by_epoch=True,
-    #     milestones=[28],  # 14 for TadTR
+    #     milestones=[14],  # 14 for TadTR
     #     gamma=0.1),
     dict(
         type='LinearLR',
         by_epoch=True,
         start_factor=0.001,
-        end=5,
+        end=4,
         convert_to_iter_based=True),
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
-        T_max=25,
+        T_max=16,
         eta_min_ratio=0.01,
         convert_to_iter_based=True)
 ]
