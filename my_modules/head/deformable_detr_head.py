@@ -108,8 +108,8 @@ class CustomDeformableDETRHead(DeformableDETRHead):
         det_bboxes = bbox_cxcywh_to_xyxy(bbox_pred)
         det_bboxes[:, 0::2] = det_bboxes[:, 0::2] * img_shape[1]
         det_bboxes[:, 1::2] = det_bboxes[:, 1::2] * img_shape[0]
-        det_bboxes[:, 0::2].clamp_(min=0, max=img_shape[1])
-        det_bboxes[:, 1::2].clamp_(min=0, max=img_shape[0])
+        # det_bboxes[:, 0::2].clamp_(min=0, max=img_shape[1])
+        # det_bboxes[:, 1::2].clamp_(min=0, max=img_shape[0])
         if rescale:
             assert img_meta.get('scale_factor') is not None
             det_bboxes /= det_bboxes.new_tensor(
