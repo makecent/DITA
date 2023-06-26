@@ -143,7 +143,7 @@ param_scheduler = [
     dict(
         type='LinearLR',
         by_epoch=True,
-        start_factor=0,
+        start_factor=0.001,
         end=5,
         convert_to_iter_based=True),
     dict(
