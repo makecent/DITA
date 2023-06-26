@@ -4,13 +4,13 @@ from typing import Sequence
 
 import numpy as np
 import torch
-from mmcv.ops import batched_nms
 from mmdet.evaluation.functional import eval_map, eval_recalls
 from mmdet.evaluation.metrics import VOCMetric
 from mmdet.registry import METRICS
+from mmdet.structures.bbox import bbox_overlaps
 from mmengine.logging import MMLogger
 from mmengine.structures import InstanceData
-from mmdet.structures.bbox import bbox_overlaps
+
 
 @METRICS.register_module()
 class TH14Metric(VOCMetric):
@@ -40,8 +40,8 @@ class TH14Metric(VOCMetric):
             gt_instances = gt['gt_instances']
             gt_ignore_instances = gt['ignored_instances']
             ann = dict(
-                video_name=gt['img_id'],    # for the purpose of future grouping detections of same video.
-                overlap=gt['overlap'],        # for the purpose of NMS on overlapped region in testing videos
+                video_name=gt['img_id'],  # for the purpose of future grouping detections of same video.
+                overlap=gt['overlap'],  # for the purpose of NMS on overlapped region in testing videos
                 labels=gt_instances['labels'].cpu().numpy(),
                 bboxes=gt_instances['bboxes'].cpu().numpy(),
                 bboxes_ignore=gt_ignore_instances.get('bboxes', torch.empty((0, 4))).cpu().numpy(),
@@ -163,20 +163,30 @@ class TH14Metric(VOCMetric):
                     pred_in_overlap = pred_v[pred_v.in_overlap[:, i]]
                     if len(pred_in_overlap) == 0:
                         continue
-                    bboxes, keep_idxs = batched_nms(pred_in_overlap.bboxes,
-                                                    pred_in_overlap.scores,
-                                                    pred_in_overlap.labels,
-                                                    nms_cfg=self.nms_cfg)
-                    pred_in_overlap = pred_in_overlap[keep_idxs]
-                    # some nms operation may reweight the score such as softnms
-                    pred_in_overlap.scores = bboxes[:, -1]
-
+                    # bboxes, keep_idxs = batched_nms(pred_in_overlap.bboxes,
+                    #                                 pred_in_overlap.scores,
+                    #                                 pred_in_overlap.labels,
+                    #                                 nms_cfg=self.nms_cfg)
+                    # pred_in_overlap = pred_in_overlap[keep_idxs]
+                    # # some nms operation may reweight the score such as softnms
+                    # pred_in_overlap.scores = bboxes[:, -1]
+                    from .tadtr_nms import apply_nms
+                    pred_in_overlap = apply_nms(
+                        np.concatenate((pred_in_overlap.bboxes,
+                                        pred_in_overlap.scores[:, None],
+                                        pred_in_overlap.labels[:, None],
+                                        np.arange(len(pred_in_overlap))[:, None]),
+                                       axis=1))
+                    pred_in_overlap = InstanceData(bboxes=torch.from_numpy(pred_in_overlap[:, :4]),
+                                                   scores=torch.from_numpy(pred_in_overlap[:, 4]),
+                                                   labels=torch.from_numpy(pred_in_overlap[:, 5].astype(int)))
                     pred_in_overlaps.append(pred_in_overlap)
+                pred_not_in_overlaps.pop('in_overlap')
                 pred_v = InstanceData.cat(pred_in_overlaps + [pred_not_in_overlaps])
             sort_idxs = pred_v.scores.argsort(descending=True)
             pred_v = pred_v[sort_idxs]
             # keep top-k predictions
-            pred_v = pred_v[:self.max_per_video]
+            # pred_v = pred_v[:self.max_per_video]
 
             # Reformat predictions to meet the requirement of eval_map function: VideoList[ClassList[PredictionArray]]
             dets = []

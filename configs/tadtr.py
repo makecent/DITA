@@ -114,8 +114,8 @@ optim_wrapper = dict(
     type='OptimWrapper',
     optimizer=dict(
         type='AdamW',
-        lr=2e-4,
-        weight_decay=0.05),   # 0.0001 by default
+        lr=lr,
+        weight_decay=0.0001),   # 0.0001 by default
     clip_grad=dict(max_norm=0.1, norm_type=2),
     paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=0.1),
                                     'sampling_offsets': dict(lr_mult=0.1),
@@ -125,31 +125,31 @@ optim_wrapper = dict(
 # learning policy
 max_epochs = 16  # 16 for TadTR
 train_cfg = dict(
-    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)  # 1 for TadTR
+    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
 
 val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
 
 param_scheduler = [
+    dict(
+        type='MultiStepLR',
+        begin=0,
+        end=max_epochs,
+        by_epoch=True,
+        milestones=[14],  # 14 for TadTR
+        gamma=0.1),
     # dict(
-    #     type='MultiStepLR',
-    #     begin=0,
-    #     end=max_epochs,
+    #     type='LinearLR',
     #     by_epoch=True,
-    #     milestones=[14],  # 14 for TadTR
-    #     gamma=0.1),
-    dict(
-        type='LinearLR',
-        by_epoch=True,
-        start_factor=0.001,
-        end=4,
-        convert_to_iter_based=True),
-    dict(
-        type='CosineAnnealingLR',
-        by_epoch=True,
-        T_max=16,
-        eta_min_ratio=0.01,
-        convert_to_iter_based=True)
+    #     start_factor=0.001,
+    #     end=4,
+    #     convert_to_iter_based=True),
+    # dict(
+    #     type='CosineAnnealingLR',
+    #     by_epoch=True,
+    #     T_max=16,
+    #     eta_min_ratio=0.01,
+    #     convert_to_iter_based=True)
 ]
 
 # NOTE: `auto_scale_lr` is for automatically scaling LR,

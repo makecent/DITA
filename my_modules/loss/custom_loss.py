@@ -1,4 +1,5 @@
-from mmdet.models.losses import L1Loss, IoULoss, GIoULoss
+from mmdet.models.losses import L1Loss, GIoULoss
+from my_modules.loss.debug_loss import IoULoss
 from mmdet.models.task_modules import IoUCost, BBoxL1Cost
 from mmdet.registry import MODELS, TASK_UTILS
 from mmengine.structures import InstanceData
@@ -64,3 +65,5 @@ class CustomBBoxL1Cost(BBoxL1Cost):
     @zero_out_pred_coordinates_decorator
     def __call__(self, pred_instances: InstanceData, gt_instances: InstanceData, *args, **kwargs):
         return super().__call__(pred_instances, gt_instances, *args, **kwargs)
+
+# @MODELS.register_module(force=True)
