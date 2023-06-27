@@ -59,64 +59,64 @@ class CustomDeformableDETRHead(DeformableDETRHead):
 
     # TODO: below is for bugging purpose, remove it later
 
-    # def _predict_by_feat_single(self,
-    #                             cls_score: Tensor,
-    #                             bbox_pred: Tensor,
-    #                             img_meta: dict,
-    #                             rescale: bool = True) -> InstanceData:
-    #     """Transform outputs from the last decoder layer into bbox predictions
-    #     for each image.
-    #
-    #     Args:
-    #         cls_score (Tensor): Box score logits from the last decoder layer
-    #             for each image. Shape [num_queries, cls_out_channels].
-    #         bbox_pred (Tensor): Sigmoid outputs from the last decoder layer
-    #             for each image, with coordinate format (cx, cy, w, h) and
-    #             shape [num_queries, 4].
-    #         img_meta (dict): Image meta info.
-    #         rescale (bool): If True, return boxes in original image
-    #             space. Default True.
-    #
-    #     Returns:
-    #         :obj:`InstanceData`: Detection results of each image
-    #         after the post process.
-    #         Each item usually contains following keys.
-    #
-    #             - scores (Tensor): Classification scores, has a shape
-    #               (num_instance, )
-    #             - labels (Tensor): Labels of bboxes, has a shape
-    #               (num_instances, ).
-    #             - bboxes (Tensor): Has a shape (num_instances, 4),
-    #               the last dimension 4 arrange as (x1, y1, x2, y2).
-    #     """
-    #     assert len(cls_score) == len(bbox_pred)  # num_queries
-    #     max_per_img = self.test_cfg.get('max_per_img', len(cls_score))
-    #     img_shape = img_meta['img_shape']
-    #     # exclude background
-    #     if self.loss_cls.use_sigmoid:
-    #         cls_score = cls_score.sigmoid()
-    #         scores, indexes = cls_score.view(-1).topk(max_per_img)
-    #         det_labels = indexes % self.num_classes
-    #         bbox_index = indexes // self.num_classes
-    #         bbox_pred = bbox_pred[bbox_index]
-    #     else:
-    #         scores, det_labels = F.softmax(cls_score, dim=-1)[..., :-1].max(-1)
-    #         scores, bbox_index = scores.topk(max_per_img)
-    #         bbox_pred = bbox_pred[bbox_index]
-    #         det_labels = det_labels[bbox_index]
-    #
-    #     det_bboxes = bbox_cxcywh_to_xyxy(bbox_pred)
-    #     det_bboxes[:, 0::2] = det_bboxes[:, 0::2] * img_shape[1]
-    #     det_bboxes[:, 1::2] = det_bboxes[:, 1::2] * img_shape[0]
-    #     # det_bboxes[:, 0::2].clamp_(min=0, max=img_shape[1])
-    #     # det_bboxes[:, 1::2].clamp_(min=0, max=img_shape[0])
-    #     if rescale:
-    #         assert img_meta.get('scale_factor') is not None
-    #         det_bboxes /= det_bboxes.new_tensor(
-    #             img_meta['scale_factor']).repeat((1, 2))
-    #
-    #     results = InstanceData()
-    #     results.bboxes = det_bboxes
-    #     results.scores = scores
-    #     results.labels = det_labels
-    #     return results
+    def _predict_by_feat_single(self,
+                                cls_score: Tensor,
+                                bbox_pred: Tensor,
+                                img_meta: dict,
+                                rescale: bool = True) -> InstanceData:
+        """Transform outputs from the last decoder layer into bbox predictions
+        for each image.
+
+        Args:
+            cls_score (Tensor): Box score logits from the last decoder layer
+                for each image. Shape [num_queries, cls_out_channels].
+            bbox_pred (Tensor): Sigmoid outputs from the last decoder layer
+                for each image, with coordinate format (cx, cy, w, h) and
+                shape [num_queries, 4].
+            img_meta (dict): Image meta info.
+            rescale (bool): If True, return boxes in original image
+                space. Default True.
+
+        Returns:
+            :obj:`InstanceData`: Detection results of each image
+            after the post process.
+            Each item usually contains following keys.
+
+                - scores (Tensor): Classification scores, has a shape
+                  (num_instance, )
+                - labels (Tensor): Labels of bboxes, has a shape
+                  (num_instances, ).
+                - bboxes (Tensor): Has a shape (num_instances, 4),
+                  the last dimension 4 arrange as (x1, y1, x2, y2).
+        """
+        assert len(cls_score) == len(bbox_pred)  # num_queries
+        max_per_img = self.test_cfg.get('max_per_img', len(cls_score))
+        img_shape = img_meta['img_shape']
+        # exclude background
+        if self.loss_cls.use_sigmoid:
+            cls_score = cls_score.sigmoid()
+            scores, indexes = cls_score.view(-1).topk(max_per_img)
+            det_labels = indexes % self.num_classes
+            bbox_index = indexes // self.num_classes
+            bbox_pred = bbox_pred[bbox_index]
+        else:
+            scores, det_labels = F.softmax(cls_score, dim=-1)[..., :-1].max(-1)
+            scores, bbox_index = scores.topk(max_per_img)
+            bbox_pred = bbox_pred[bbox_index]
+            det_labels = det_labels[bbox_index]
+
+        det_bboxes = bbox_cxcywh_to_xyxy(bbox_pred)
+        det_bboxes[:, 0::2] = det_bboxes[:, 0::2] * img_shape[1]
+        det_bboxes[:, 1::2] = det_bboxes[:, 1::2] * img_shape[0]
+        # det_bboxes[:, 0::2].clamp_(min=0, max=img_shape[1])
+        # det_bboxes[:, 1::2].clamp_(min=0, max=img_shape[0])
+        if rescale:
+            assert img_meta.get('scale_factor') is not None
+            det_bboxes /= det_bboxes.new_tensor(
+                img_meta['scale_factor']).repeat((1, 2))
+
+        results = InstanceData()
+        results.bboxes = det_bboxes
+        results.scores = scores
+        results.labels = det_labels
+        return results
