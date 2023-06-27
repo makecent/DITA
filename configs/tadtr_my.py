@@ -3,7 +3,7 @@ _base_ = [
 ]
 
 # Use cosine annealing lr to replace the original step lr in TadTR
-optim_wrapper = dict(optimizer=dict(lr=1e-3))
+optim_wrapper = dict(optimizer=dict(lr=5e-4))
 train_cfg = dict(
     type='EpochBasedTrainLoop', max_epochs=20, val_interval=1)
 param_scheduler = [
