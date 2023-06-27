@@ -18,7 +18,7 @@ class TH14Metric(VOCMetric):
 
     def __init__(self,
                  nms_cfg=dict(type='nms', iou_thr=0.4),
-                 max_per_video: int = 100,
+                 max_per_video: int = False,
                  eval_mode: str = 'area',
                  **kwargs):
         super().__init__(eval_mode=eval_mode, **kwargs)
@@ -153,6 +153,7 @@ class TH14Metric(VOCMetric):
         return merged_gts, merged_preds
 
     def non_maximum_suppression(self, preds):
+        min_x = 1000
         preds_nms = []
         for pred_v in preds:
             if self.nms_cfg is not None and pred_v.in_overlap.sum() > 1:
@@ -164,30 +165,32 @@ class TH14Metric(VOCMetric):
                     pred_in_overlap = pred_v[pred_v.in_overlap[:, i]]
                     if len(pred_in_overlap) == 0:
                         continue
-                    # bboxes, keep_idxs = batched_nms(pred_in_overlap.bboxes,
-                    #                                 pred_in_overlap.scores,
-                    #                                 pred_in_overlap.labels,
-                    #                                 nms_cfg=self.nms_cfg)
-                    # pred_in_overlap = pred_in_overlap[keep_idxs]
-                    # # some nms operation may reweight the score such as softnms
-                    # pred_in_overlap.scores = bboxes[:, -1]
-                    from .tadtr_nms import apply_nms
-                    pred_in_overlap = apply_nms(
-                        np.concatenate((pred_in_overlap.bboxes,
-                                        pred_in_overlap.scores[:, None],
-                                        pred_in_overlap.labels[:, None],
-                                        np.arange(len(pred_in_overlap))[:, None]),
-                                       axis=1))
-                    pred_in_overlap = InstanceData(bboxes=torch.from_numpy(pred_in_overlap[:, :4]),
-                                                   scores=torch.from_numpy(pred_in_overlap[:, 4]),
-                                                   labels=torch.from_numpy(pred_in_overlap[:, 5].astype(int)))
-                    pred_in_overlaps.append(pred_in_overlap)
-                pred_not_in_overlaps.pop('in_overlap')
+                    bboxes, keep_idxs = batched_nms(pred_in_overlap.bboxes,
+                                                    pred_in_overlap.scores,
+                                                    pred_in_overlap.labels,
+                                                    nms_cfg=self.nms_cfg)
+                    pred_in_overlap = pred_in_overlap[keep_idxs]
+                    pred_in_overlap.scores = bboxes[:, -1]
+
+                    # # TadTR version of NMS
+                    # from .tadtr_nms import apply_nms
+                    # pred_in_overlap_2 = apply_nms(
+                    #     np.concatenate((pred_in_overlap.bboxes,
+                    #                     pred_in_overlap.scores[:, None],
+                    #                     pred_in_overlap.labels[:, None],
+                    #                     np.arange(len(pred_in_overlap))[:, None]),
+                    #                    axis=1))
+                    # pred_in_overlap_2 = InstanceData(bboxes=torch.from_numpy(pred_in_overlap_2[:, :4]),
+                    #                                scores=torch.from_numpy(pred_in_overlap_2[:, 4]),
+                    #                                labels=torch.from_numpy(pred_in_overlap_2[:, 5].astype(int)))
+                    # pred_in_overlaps.append(pred_in_overlap_2)
+                # pred_not_in_overlaps.pop('in_overlap')
                 pred_v = InstanceData.cat(pred_in_overlaps + [pred_not_in_overlaps])
             sort_idxs = pred_v.scores.argsort(descending=True)
             pred_v = pred_v[sort_idxs]
             # keep top-k predictions
-            # pred_v = pred_v[:self.max_per_video]
+            if self.max_per_video:
+                pred_v = pred_v[:self.max_per_video]
 
             # Reformat predictions to meet the requirement of eval_map function: VideoList[ClassList[PredictionArray]]
             dets = []
