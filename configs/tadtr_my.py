@@ -8,14 +8,17 @@ train_cfg = dict(
 param_scheduler = [
     dict(
         type='LinearLR',
-        by_epoch=True,
         start_factor=0.001,
+        by_epoch=True,
+        begin=0,
         end=4,
         convert_to_iter_based=True),
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
         T_max=16,
+        begin=4,
+        end=20,
         eta_min_ratio=0.01,
         convert_to_iter_based=True)
 ]
