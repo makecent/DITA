@@ -1,5 +1,5 @@
 _base_ = [
-    './tadtr.py'
+    './tadtr_my.py'
 ]
 train_dataloader = dict(
     dataset=dict(feat_stride=4,
