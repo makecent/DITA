@@ -173,7 +173,7 @@ env_cfg = dict(
 )
 
 vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend'),
-                dict(type='WandbVisBackend', init_kwargs=dict(project='TAD_DINO'))]
+                dict(type='WandbVisBackend', init_kwargs=dict(project='TAD_DINO'), define_metric_cfg={'pascal_voc/mAP': 'max'})]
 # vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
 visualizer = dict(
     type='DetLocalVisualizer', vis_backends=vis_backends, name='visualizer')

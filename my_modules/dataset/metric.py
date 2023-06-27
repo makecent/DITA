@@ -187,7 +187,7 @@ class TH14Metric(VOCMetric):
             sort_idxs = pred_v.scores.argsort(descending=True)
             pred_v = pred_v[sort_idxs]
             # keep top-k predictions
-            # pred_v = pred_v[:self.max_per_video]
+            pred_v = pred_v[:self.max_per_video]
 
             # Reformat predictions to meet the requirement of eval_map function: VideoList[ClassList[PredictionArray]]
             dets = []
