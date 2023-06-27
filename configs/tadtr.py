@@ -138,18 +138,6 @@ param_scheduler = [
         by_epoch=True,
         milestones=[14],  # 14 for TadTR
         gamma=0.1),
-    # dict(
-    #     type='LinearLR',
-    #     by_epoch=True,
-    #     start_factor=0.001,
-    #     end=4,
-    #     convert_to_iter_based=True),
-    # dict(
-    #     type='CosineAnnealingLR',
-    #     by_epoch=True,
-    #     T_max=16,
-    #     eta_min_ratio=0.01,
-    #     convert_to_iter_based=True)
 ]
 
 # NOTE: `auto_scale_lr` is for automatically scaling LR,
