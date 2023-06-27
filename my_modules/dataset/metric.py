@@ -183,7 +183,7 @@ class TH14Metric(VOCMetric):
                     # pred_in_overlap_2 = InstanceData(bboxes=torch.from_numpy(pred_in_overlap_2[:, :4]),
                     #                                scores=torch.from_numpy(pred_in_overlap_2[:, 4]),
                     #                                labels=torch.from_numpy(pred_in_overlap_2[:, 5].astype(int)))
-                    # pred_in_overlaps.append(pred_in_overlap_2)
+                    pred_in_overlaps.append(pred_in_overlap)
                 # pred_not_in_overlaps.pop('in_overlap')
                 pred_v = InstanceData.cat(pred_in_overlaps + [pred_not_in_overlaps])
             sort_idxs = pred_v.scores.argsort(descending=True)
