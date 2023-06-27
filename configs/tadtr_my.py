@@ -1,5 +1,5 @@
 _base_ = [
-    '.tadtr.py'
+    './tadtr.py'
 ]
 
 # Use cosine annealing lr to replace the original step lr in TadTR
