@@ -43,19 +43,26 @@ model = dict(
     neck=[
         dict(
             type='DownSampler1D',
-            num_levels=4,
+            num_levels=5,
             in_channels=2048,
-            out_channels=2048,
-            out_indices=(0, 1, 2, 3),
-            mask=True),
-        dict(
-            type='ChannelMapper',
-            in_channels=[2048, 2048, 2048, 2048],
-            kernel_size=1,
-            out_channels=256,
-            act_cfg=None,
-            norm_cfg=dict(type='GN', num_groups=32),
-            num_outs=4)],
+            out_channels=512,
+            out_indices=(0, 1, 2, 3, 4),
+            mask=False),
+        # dict(
+        #     type='ChannelMapper',
+        #     in_channels=[2048, 2048, 2048, 2048],
+        #     kernel_size=1,
+        #     out_channels=256,
+        #     act_cfg=None,
+        #     norm_cfg=dict(type='GN', num_groups=32),
+        #     num_outs=4)
+        dict(type='FPN',
+             in_channels=[2048, 512, 512, 512, 512],
+             out_channels=256,
+             num_outs=5,
+             conv_cfg=dict(type='Conv1d'),
+             norm_cfg=dict(type='SyncBN')),
+    ],
     encoder=dict(layer_cfg=dict(self_attn_cfg=dict(num_levels=4))),
     decoder=dict(layer_cfg=dict(cross_attn_cfg=dict(num_levels=4)))
 )
