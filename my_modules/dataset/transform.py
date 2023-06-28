@@ -203,8 +203,8 @@ class ReFormat(BaseTransform):
         results.update({"img_id": results.pop("video_name")})
         results.update({'img': results.pop('feat')[None]})
         results.update({'ori_shape': (1, results.pop('feat_len'))})
-        results.update({'img_shape': results['ori_shape']})
-        # results.update({'img_shape': (1, results['img'].shape[1])})
+        # results.update({'img_shape': results['ori_shape']})
+        results.update({'img_shape': (1, results['img'].shape[1])})
 
         results['img_path'] = ''
         results['scale_factor'] = [1.0, 1.0]
