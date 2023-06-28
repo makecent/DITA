@@ -57,7 +57,7 @@ model = dict(
         #     norm_cfg=dict(type='GN', num_groups=32),
         #     num_outs=4)
         dict(type='FPN',
-             in_channels=[2048, 512, 512, 512],
+             in_channels=[2048, 512, 512, 512, 512, 512],
              out_channels=256,
              num_outs=6,
              conv_cfg=dict(type='Conv1d'),
