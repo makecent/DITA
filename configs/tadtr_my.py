@@ -46,7 +46,8 @@ model = dict(
             num_levels=4,
             in_channels=2048,
             out_channels=2048,
-            out_indices=(0, 1, 2, 3)),
+            out_indices=(0, 1, 2, 3),
+            mask=True),
         dict(
             type='ChannelMapper',
             in_channels=[2048, 2048, 2048, 2048],
