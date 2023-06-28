@@ -55,5 +55,6 @@ model = dict(
             act_cfg=None,
             norm_cfg=dict(type='GN', num_groups=32),
             num_outs=4)],
+    encoder=dict(layer_cfg=dict(self_attn_cfg=dict(num_levels=4))),
     decoder=dict(layer_cfg=dict(cross_attn_cfg=dict(num_levels=4)))
 )
