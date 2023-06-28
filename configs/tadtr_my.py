@@ -43,7 +43,7 @@ model = dict(
     neck=[
         dict(
             type='DownSampler1D',
-            num_levels=4,
+            num_levels=6,
             in_channels=2048,
             out_channels=512,
             out_indices=(0, 1, 2, 3),
@@ -59,10 +59,10 @@ model = dict(
         dict(type='FPN',
              in_channels=[2048, 512, 512, 512],
              out_channels=256,
-             num_outs=4,
+             num_outs=6,
              conv_cfg=dict(type='Conv1d'),
              norm_cfg=dict(type='SyncBN')),
     ],
-    encoder=dict(layer_cfg=dict(self_attn_cfg=dict(num_levels=4))),
-    decoder=dict(layer_cfg=dict(cross_attn_cfg=dict(num_levels=4)))
+    encoder=dict(layer_cfg=dict(self_attn_cfg=dict(num_levels=6))),
+    decoder=dict(layer_cfg=dict(cross_attn_cfg=dict(num_levels=6)))
 )
