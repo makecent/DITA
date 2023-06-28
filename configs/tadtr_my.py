@@ -36,22 +36,22 @@ val_dataloader = dict(
                  window_stride=192,  # overlap=0.25
                  data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
 
-# # 3. Use multi-scale features via multi-level temporal 1d convolutions
-# model = dict(
-#     num_feature_levels=4,
-#     backbone=dict(type='PseudoBackbone', multi_scale=False),
-#     neck=[
-#         dict(
-#             type='DownSampler1D',
-#             num_levels=4,
-#             in_channels=2048,
-#             out_channels=2048,
-#             out_indices=(0, 1, 2, 3)),
-#         dict(
-#             type='ChannelMapper',
-#             in_channels=[2048, 2048, 2048, 2048],
-#             kernel_size=1,
-#             out_channels=256,
-#             act_cfg=None,
-#             norm_cfg=dict(type='GN', num_groups=32),
-#             num_outs=4)])
+# 3. Use multi-scale features via multi-level temporal 1d convolutions
+model = dict(
+    num_feature_levels=4,
+    backbone=dict(type='PseudoBackbone', multi_scale=False),
+    neck=[
+        dict(
+            type='DownSampler1D',
+            num_levels=4,
+            in_channels=2048,
+            out_channels=2048,
+            out_indices=(0, 1, 2, 3)),
+        dict(
+            type='ChannelMapper',
+            in_channels=[2048, 2048, 2048, 2048],
+            kernel_size=1,
+            out_channels=256,
+            act_cfg=None,
+            norm_cfg=dict(type='GN', num_groups=32),
+            num_outs=4)])
