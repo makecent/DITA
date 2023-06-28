@@ -24,17 +24,17 @@ param_scheduler = [
         convert_to_iter_based=True)
 ]
 
-# 2. Use stride-4 features (used by the ActionFormer)
-train_dataloader = dict(
-    dataset=dict(feat_stride=4,
-                 window_size=256,
-                 window_stride=64,  # overlap=0.75
-                 data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
-val_dataloader = dict(
-    dataset=dict(feat_stride=4,
-                 window_size=256,
-                 window_stride=192,  # overlap=0.25
-                 data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
+# # 2. Use stride-4 features (used by the ActionFormer)
+# train_dataloader = dict(
+#     dataset=dict(feat_stride=4,
+#                  window_size=256,
+#                  window_stride=64,  # overlap=0.75
+#                  data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
+# val_dataloader = dict(
+#     dataset=dict(feat_stride=4,
+#                  window_size=256,
+#                  window_stride=192,  # overlap=0.25
+#                  data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
 
 # 3. Use multi-scale features via multi-level temporal 1d convolutions
 model = dict(
@@ -54,4 +54,6 @@ model = dict(
             out_channels=256,
             act_cfg=None,
             norm_cfg=dict(type='GN', num_groups=32),
-            num_outs=4)])
+            num_outs=4)],
+    decoder=dict(layer_cfg=dict(cross_attn_cfg=dict(num_levels=4)))
+)
