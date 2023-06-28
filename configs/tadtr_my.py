@@ -54,6 +54,7 @@ model = dict(
             kernel_size=1,
             out_channels=256,
             act_cfg=None,
+            conv_cfg=dict(type='Conv1d'),
             norm_cfg=dict(type='GN', num_groups=32),
             num_outs=6)
         # dict(type='FPN',
