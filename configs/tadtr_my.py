@@ -38,7 +38,7 @@ val_dataloader = dict(
 
 # 3. Use multi-scale features via multi-level temporal 1d convolutions
 model = dict(
-    num_feature_levels=4,
+    num_feature_levels=6,
     backbone=dict(type='PseudoBackbone', multi_scale=False),
     neck=[
         dict(
