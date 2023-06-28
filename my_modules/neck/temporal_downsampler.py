@@ -87,6 +87,4 @@ class DownSampler1D(nn.Module):
                 x = x * mask.detach()
             if (i + 1) in self.out_indices:
                 outs.append(x)
-        # outs: N, C, 1, T
-        outs = [out.unsqueeze(2) for out in outs]
         return tuple(outs)

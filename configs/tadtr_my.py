@@ -43,10 +43,10 @@ model = dict(
     neck=[
         dict(
             type='DownSampler1D',
-            num_levels=5,
+            num_levels=4,
             in_channels=2048,
             out_channels=512,
-            out_indices=(0, 1, 2, 3, 4),
+            out_indices=(0, 1, 2, 3),
             mask=False),
         # dict(
         #     type='ChannelMapper',
@@ -57,9 +57,9 @@ model = dict(
         #     norm_cfg=dict(type='GN', num_groups=32),
         #     num_outs=4)
         dict(type='FPN',
-             in_channels=[2048, 512, 512, 512, 512],
+             in_channels=[2048, 512, 512, 512],
              out_channels=256,
-             num_outs=5,
+             num_outs=4,
              conv_cfg=dict(type='Conv1d'),
              norm_cfg=dict(type='SyncBN')),
     ],
