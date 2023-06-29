@@ -32,13 +32,6 @@ class CustomDeformableDETR(DeformableDETR):
         if not self.as_two_stage:
             self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1)
 
-    def extract_feat(self, batch_inputs: Tensor) -> Tuple[Tensor]:
-        x = self.backbone(batch_inputs)
-        if self.with_neck:
-            x = self.neck(x)
-        # insert the pseudo height dimension
-        x = tuple(i.unsqueeze(2) for i in x)
-        return x
 
     def forward_transformer(self,
                             img_feats: Tuple[Tensor],

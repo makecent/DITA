@@ -12,9 +12,9 @@ class DownSampler1D(nn.Module):
                  num_levels=4,
                  in_channels=2048,
                  out_channels=512,
-                 kernel_sizes=3,
-                 strides=2,
-                 paddings=1,
+                 kernel_sizes=(1, 3),
+                 strides=(1, 2),
+                 paddings=(0, 1),
                  out_indices=(0, 1, 2, 3),
                  mask=False,
                  ):
@@ -36,7 +36,7 @@ class DownSampler1D(nn.Module):
                                         kernel_sizes,
                                         strides,
                                         paddings,
-                                        conv_cfg=dict(type='Conv1d'),
+                                        conv_cfg=dict(type='Conv2d'),
                                         norm_cfg=dict(type='SyncBN'),
                                         act_cfg=dict(type='ReLU')))
             in_channels = out_channels
@@ -61,16 +61,15 @@ class DownSampler1D(nn.Module):
 
     def forward(self, x):
         # x: N, C, 1, T
-        x = x.squeeze(2)
 
         if self.mask:
-            B, C, T = x.size()
+            B, C, _, T = x.size()
             mask = x.new_zeros((B, 1, T))
             for feat_id, feat in enumerate(x):
                 # find valid feature length for each sample in the batch
                 # feat is of shape (C, T), we find the tails that are all zeros and take it as the padding
                 valid_feat_len = T - (feat == 0).all(dim=0).sum()
-                mask[feat_id, :, :valid_feat_len] = 1
+                mask[feat_id, :, :, :valid_feat_len] = 1
 
         outs = []
         if 0 in self.out_indices:
