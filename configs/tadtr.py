@@ -1,3 +1,4 @@
+# I an
 _base_ = [
     './thumos14.py'
 ]
@@ -68,33 +69,17 @@ model = dict(
     # num_feats=128, offset=-0.5 for DeformableDETR, but 256, 0 for TadTR, we cannot set to 256 because of y-axis
     positional_encoding=dict(num_feats=128, normalize=True, offset=0, temperature=temperature),
     bbox_head=dict(
-        type='MyRoIHead',
-        bbox_roi_extractor=dict(
-            type='GenericRoIExtractor',
-            aggregation='sum',
-            roi_layer=dict(
-                type='RoIAlign',
-                output_size=(1, 16),
-                sampling_ratio=0,
-                aligned=True),
-            out_channels=256,
-            featmap_strides=[1],
-            pre_cfg=None,
-            post_cfg=None),
-        expand_roi_factor=1.5,
-        actionness_loss=dict(type='L1Loss', loss_weight=act_loss_coef),
-        bbox_head=dict(
-            type='CustomDeformableDETRHead',
-            num_classes=20,
-            sync_cls_avg_factor=True,
-            loss_cls=dict(
-                type='FocalLoss',
-                use_sigmoid=True,
-                gamma=2.0,
-                alpha=0.25,
-                loss_weight=cls_loss_coef),
-            loss_bbox=dict(type='CustomL1Loss', loss_weight=seg_loss_coef),
-            loss_iou=dict(type='CustomIoULoss', mode='linear', loss_weight=iou_loss_coef))),  # -log(GIoU) for DeformableDETR
+        type='CustomDeformableDETRHead',
+        num_classes=20,
+        sync_cls_avg_factor=True,
+        loss_cls=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.25,
+            loss_weight=cls_loss_coef),
+        loss_bbox=dict(type='CustomL1Loss', loss_weight=seg_loss_coef),
+        loss_iou=dict(type='CustomIoULoss', mode='linear', loss_weight=iou_loss_coef)),  # -log(GIoU) for DeformableDETR
     # training and testing settings
     train_cfg=dict(
         assigner=dict(
@@ -115,7 +100,7 @@ optim_wrapper = dict(
     optimizer=dict(
         type='AdamW',
         lr=lr,
-        weight_decay=0.0001),   # 0.0001 by default
+        weight_decay=0.0001),  # 0.0001 by default
     clip_grad=dict(max_norm=0.1, norm_type=2),
     paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=0.1),
                                     'sampling_offsets': dict(lr_mult=0.1),

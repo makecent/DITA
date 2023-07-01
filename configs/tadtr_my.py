@@ -36,10 +36,11 @@ val_dataloader = dict(
                  window_stride=192,  # overlap=0.25
                  data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
 
-# 3. Use multi-scale features via multi-level temporal 1d convolutions
+# 3. Use multi-level features via temporal 1d convolution layers
+# model setting
 model = dict(
     num_feature_levels=4,
-    backbone=dict(type='PseudoBackbone', multi_scale=False),
+    backbone=dict(type='PseudoBackbone', multi_scale=False),  # No backbone since we use pre-extracted features.
     neck=[
         dict(
             type='DownSampler1D',
@@ -55,14 +56,7 @@ model = dict(
             out_channels=256,
             act_cfg=None,
             norm_cfg=dict(type='GN', num_groups=32),
-            num_outs=4)
-        # dict(type='FPN',
-        #      in_channels=[2048, 512, 512, 512, 512, 512],
-        #      out_channels=256,
-        #      num_outs=6,
-        #      conv_cfg=dict(type='Conv1d'),
-        #      norm_cfg=dict(type='SyncBN')),
-    ],
+            num_outs=4)],
     encoder=dict(layer_cfg=dict(self_attn_cfg=dict(num_levels=4))),
     decoder=dict(layer_cfg=dict(cross_attn_cfg=dict(num_levels=4)))
 )

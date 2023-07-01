@@ -1,10 +1,6 @@
-from typing import List, Tuple
-
 from mmdet.models.dense_heads import DeformableDETRHead
 from mmdet.registry import MODELS
-from mmdet.structures import SampleList
-from mmdet.utils import InstanceList
-from torch import nn, Tensor
+from torch import nn
 
 from my_modules.layers.pseudo_layers import Pseudo4DLinear
 
@@ -29,24 +25,3 @@ class CustomDeformableDETRHead(DeformableDETRHead):
         if self.as_two_stage:
             for m in self.reg_branches:
                 nn.init.constant_(m[-1].bias.data[1:], 0.0)  # [2:] -> [1:]
-
-    def loss_and_predict(
-            self,
-            hidden_states: Tensor, references: List[Tensor],
-            enc_outputs_class: Tensor, enc_outputs_coord: Tensor,
-            batch_data_samples: SampleList,
-            rescale: bool = False) -> Tuple[dict, InstanceList]:
-        batch_gt_instances = []
-        batch_img_metas = []
-        for data_sample in batch_data_samples:
-            batch_img_metas.append(data_sample.metainfo)
-            batch_gt_instances.append(data_sample.gt_instances)
-
-        outs = self(hidden_states, references)
-        loss_inputs = outs + (enc_outputs_class, enc_outputs_coord,
-                              batch_gt_instances, batch_img_metas)
-        losses = self.loss_by_feat(*loss_inputs)
-
-        predictions = self.predict_by_feat(
-            *outs, batch_img_metas=batch_img_metas, rescale=rescale)
-        return losses, predictions
