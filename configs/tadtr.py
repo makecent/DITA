@@ -8,7 +8,7 @@ enc_layers = 4  # 6, 4
 dec_layers = 4  # 6, 4
 dim_feedforward = 1024  # 2048, 1024
 dropout = 0.1  # 0.0, 0.1
-temperature = 10000  # 20, 10000
+temperature = 10000  # 10000, 10000
 
 act_loss_coef = 4  # NA, 4
 cls_loss_coef = 2  # 1.0, 2.0
