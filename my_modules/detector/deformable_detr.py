@@ -2,7 +2,7 @@ from mmdet.models.detectors import DeformableDETR
 from mmdet.registry import MODELS
 
 from my_modules.layers.pseudo_layers import Pseudo2DLinear
-from my_modules.loss.positional_encoding import PositionEmbeddingSine
+from my_modules.loss.positional_encoding import CustomSinePositionalEncoding
 from ..layers import CustomDeformableDetrTransformerDecoder, CustomDeformableDetrTransformerEncoder
 
 
@@ -21,7 +21,7 @@ class CustomDeformableDETR(DeformableDETR):
         super()._init_layers()
         self.encoder = CustomDeformableDetrTransformerEncoder(**enc_cfg)
         self.decoder = CustomDeformableDetrTransformerDecoder(**dec_cfg)
-        self.positional_encoding = PositionEmbeddingSine(
+        self.positional_encoding = CustomSinePositionalEncoding(
             **pos_cfg)
         if not self.as_two_stage:
             self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1)

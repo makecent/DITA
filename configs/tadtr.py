@@ -65,7 +65,7 @@ model = dict(
                 feedforward_channels=dim_feedforward,
                 ffn_drop=dropout)),
         post_norm_cfg=None),
-    # num_feats=128, offset=-0.5 for DeformableDETR, but 256, 0 for TadTR, we cannot set to 256 because of y-axis
+    # offset=-0.5 for DeformableDETR; the real num_feats is 128*2=256, 128 is just for the compatibility.
     positional_encoding=dict(num_feats=128, normalize=True, offset=0, temperature=temperature),
     bbox_head=dict(
         type='CustomDeformableDETRHead',
@@ -144,9 +144,9 @@ env_cfg = dict(
     dist_cfg=dict(backend='nccl'),
 )
 
-vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend'),
-                dict(type='WandbVisBackend', init_kwargs=dict(project='TAD_DINO'), define_metric_cfg={'pascal_voc/mAP': 'max'})]
-# vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
+# vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend'),
+#                 dict(type='WandbVisBackend', init_kwargs=dict(project='TAD_DINO'), define_metric_cfg={'pascal_voc/mAP': 'max'})]
+vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
 visualizer = dict(
     type='DetLocalVisualizer', vis_backends=vis_backends, name='visualizer')
 log_processor = dict(type='LogProcessor', window_size=50, by_epoch=True)
