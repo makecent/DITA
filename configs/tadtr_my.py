@@ -40,6 +40,7 @@ val_dataloader = dict(
 # model setting
 model = dict(
     num_feature_levels=4,
+    as_two_stage=False,
     backbone=dict(type='PseudoBackbone', multi_scale=False),  # No backbone since we use pre-extracted features.
     neck=[
         dict(
@@ -57,6 +58,6 @@ model = dict(
             act_cfg=None,
             norm_cfg=dict(type='GN', num_groups=32),
             num_outs=4)],
-    encoder=dict(layer_cfg=dict(self_attn_cfg=dict(num_levels=4))),
-    decoder=dict(layer_cfg=dict(cross_attn_cfg=dict(num_levels=4)))
+    encoder=dict(num_layers=4, layer_cfg=dict(self_attn_cfg=dict(num_levels=4))),
+    decoder=dict(num_layers=4, layer_cfg=dict(cross_attn_cfg=dict(num_levels=4)))
 )

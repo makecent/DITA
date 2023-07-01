@@ -1,4 +1,3 @@
-# I an
 _base_ = [
     './thumos14.py'
 ]
