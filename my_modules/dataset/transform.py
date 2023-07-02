@@ -134,10 +134,10 @@ class SlidingWindow(BaseTransform):
     @staticmethod
     def get_valid_mask(segments, patch, iof_thr, ignore_flags=None):
         gt_iofs = segment_overlaps(segments, patch, mode='iof')[:, 0]
-        # patch_iofs = segment_overlaps(patch, segments, mode='iof')[0, :]
-        # iofs = np.maximum(gt_iofs, patch_iofs)
-        # mask = iofs > iof_thr
-        mask = gt_iofs > iof_thr
+        patch_iofs = segment_overlaps(patch, segments, mode='iof')[0, :]
+        iofs = np.maximum(gt_iofs, patch_iofs)
+        mask = iofs > iof_thr
+        # mask = gt_iofs > iof_thr
         if ignore_flags is not None:
             mask = mask & ~ignore_flags
         return mask
