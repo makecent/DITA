@@ -60,5 +60,13 @@ model = dict(
             num_outs=4)],
     positional_encoding=dict(offset=-0.5),
     encoder=dict(num_layers=4, layer_cfg=dict(self_attn_cfg=dict(num_levels=4))),
-    decoder=dict(num_layers=4, layer_cfg=dict(cross_attn_cfg=dict(num_levels=4)))
+    decoder=dict(num_layers=4, layer_cfg=dict(cross_attn_cfg=dict(num_levels=4))),
+    bbox_head=dict(loss_iou=dict(_delete_=True, type='CustomGIoULoss', loss_weight=2.0)),  # from iou to giou
+    train_cfg=dict(
+        assigner=dict(
+            type='HungarianAssigner',
+            match_costs=[
+                dict(type='FocalLossCost', weight=2.0),  # from 6.0 to 2.0
+                dict(type='CustomBBoxL1Cost', weight=5.0, box_format='xywh'),
+                dict(type='CustomIoUCost', iou_mode='giou', weight=2.0)]))  # iou to giou
 )
