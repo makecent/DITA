@@ -192,9 +192,10 @@ class SlidingWindow(BaseTransform):
             feat = np.load(feat_path)[offset: offset + feat_len]
             crop_size = feat_len
 
-        if crop_size != self.window_size:
+        if crop_size < self.window_size:
             # Padding the feature to window size if the feat is too short
-            results['feat'] = np.pad(feat, ((0, self.window_size - feat_len), (0, 0)), constant_values=0)
+            feat = np.pad(feat, ((0, self.window_size - feat_len), (0, 0)), constant_values=0)
+        results['feat'] = feat
 
         return results
 
