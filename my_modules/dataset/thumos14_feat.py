@@ -45,6 +45,7 @@ class Thumos14FeatDataset(BaseDetDataset):
         super(Thumos14FeatDataset, self).__init__(**kwargs)
 
     def load_data_list(self):
+        feat_offset = 0.5 * 16 / self.feat_stride
         data_list = []
         ann_file = mmengine.load(self.ann_file)
         for video_name, video_info in ann_file.items():
@@ -109,20 +110,20 @@ class Thumos14FeatDataset(BaseDetDataset):
                                           feat=feat_window))
 
                     # Convert the format of segment annotations from second-unit to feature-unit.
-                    segments_f = segments * data_info['fps'] / self.feat_stride
+                    segments_f = segments * data_info['fps'] / self.feat_stride - feat_offset
                     if self.test_mode:
                         data_info.update(dict(overlap=overlapped_regions))
                     else:
                         # During the training, windows has no segment annotated are skipped
                         # Also known as Integrity-based instance filtering (IBIF)
                         valid_mask = SlidingWindow.get_valid_mask(segments_f,
-                                                                  np.array([[start_idx, end_idx]], dtype=np.float32),
+                                                                  np.array([[start_idx - feat_offset, end_idx + feat_offset]], dtype=np.float32),
                                                                   iof_thr=self.iof_thr,
                                                                   ignore_flags=ignore_flags)
                         if not valid_mask.any():
                             continue
                         # Convert the segment annotations to be relative to the feature window
-                        segments_f = segments_f[valid_mask].clip(min=start_idx, max=end_idx) - start_idx
+                        segments_f = segments_f[valid_mask].clip(min=start_idx - feat_offset, max=end_idx + feat_offset) - start_idx
                         labels_f = labels[valid_mask]
                         ignore_flags_f = ignore_flags[valid_mask]
                         data_info.update(dict(segments=segments_f,
