@@ -24,17 +24,17 @@ param_scheduler = [
         convert_to_iter_based=True)
 ]
 
-# 2. Use stride-4 features (used by the ActionFormer)
+# 2. Use the self-supervised features (VideoMAE2)
 train_dataloader = dict(
     dataset=dict(feat_stride=4,
                  window_size=256,
                  window_stride=64,  # overlap=0.75
-                 data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
+                 data_prefix=dict(feat='features/thumos_feat_VideoMAE2_16input_4stride_2048_RGB')))
 val_dataloader = dict(
     dataset=dict(feat_stride=4,
                  window_size=256,
                  window_stride=192,  # overlap=0.25
-                 data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
+                 data_prefix=dict(feat='features/thumos_feat_VideoMAE2_16input_4stride_2048_RGB')))
 
 # 3. Use multi-level features via temporal 1d convolution layers
 # model setting
@@ -46,13 +46,13 @@ model = dict(
         dict(
             type='DownSampler1D',
             num_levels=4,
-            in_channels=2048,
-            out_channels=2048,
+            in_channels=1408,
+            out_channels=1408,
             out_indices=(0, 1, 2, 3),
             mask=False),
         dict(
             type='ChannelMapper',
-            in_channels=[2048, 2048, 2048, 2048],
+            in_channels=[1408, 1408, 1408, 1408],
             kernel_size=1,
             out_channels=256,
             act_cfg=None,
