@@ -24,17 +24,17 @@ param_scheduler = [
         convert_to_iter_based=True)
 ]
 
-# # 2. Use stride-4 features (used by the ActionFormer)
-# train_dataloader = dict(
-#     dataset=dict(feat_stride=4,
-#                  window_size=256,
-#                  window_stride=64,  # overlap=0.75
-#                  data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
-# val_dataloader = dict(
-#     dataset=dict(feat_stride=4,
-#                  window_size=256,
-#                  window_stride=192,  # overlap=0.25
-#                  data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
+# 2. Use stride-4 features (used by the ActionFormer)
+train_dataloader = dict(
+    dataset=dict(feat_stride=4,
+                 window_size=256,
+                 window_stride=64,  # overlap=0.75
+                 data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
+val_dataloader = dict(
+    dataset=dict(feat_stride=4,
+                 window_size=256,
+                 window_stride=192,  # overlap=0.25
+                 data_prefix=dict(feat='features/thumos_feat_ActionFormer_16input_4stride_2048/i3d_features')))
 
 # 3. Use multi-level features via temporal 1d convolution layers
 # model setting
@@ -68,7 +68,7 @@ model = dict(
                    loss_bbox=dict(type='CustomL1Loss', loss_weight=5.0),
                    loss_iou=dict(_delete_=True, type='CustomGIoULoss', loss_weight=2.0)),
     dn_cfg=dict(label_noise_scale=0.5, box_noise_scale=1.0,
-                group_cfg=dict(dynamic=True, num_groups=None, num_dn_queries=100)),
+                group_cfg=dict(dynamic=True, num_groups=None, num_dn_queries=10)),
     train_cfg=dict(assigner=dict(type='HungarianAssigner',
                                  match_costs=[dict(type='FocalLossCost', weight=2.0, gamma=2.0, alpha=0.25),
                                               dict(type='CustomBBoxL1Cost', weight=5.0, box_format='xywh'),
