@@ -25,15 +25,36 @@ param_scheduler = [
 ]
 
 # 2. Use the self-supervised features (VideoMAE2)
+train_pipeline = [
+    dict(type='SlidingWindow', window_size=256, just_loading=True),
+    dict(type='ReFormat'),
+    dict(type='PackDetInputs',
+         meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
+                    'scale_factor', 'flip', 'flip_direction',
+                    'fps', 'feat_stride', 'offset'))]
+test_pipeline = [
+    dict(type='SlidingWindow', window_size=256, just_loading=True),
+    dict(type='ReFormat'),
+    dict(type='PackDetInputs',
+         meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
+                    'scale_factor', 'flip', 'flip_direction',
+                    'fps', 'feat_stride', 'offset', 'overlap'))]
 train_dataloader = dict(
     dataset=dict(feat_stride=4,
+                 fix_slice=True,
+                 on_the_fly=True,
                  window_size=256,
+                 iof_thr=0.75,
                  window_stride=64,  # overlap=0.75
+                 pipeline=train_pipeline,
                  data_prefix=dict(feat='features/thumos_feat_VideoMAE2_16input_4stride_2048_RGB')))
 val_dataloader = dict(
     dataset=dict(feat_stride=4,
+                 fix_slice=True,
+                 on_the_fly=True,
                  window_size=256,
                  window_stride=192,  # overlap=0.25
+                 pipeline=test_pipeline,
                  data_prefix=dict(feat='features/thumos_feat_VideoMAE2_16input_4stride_2048_RGB')))
 
 # 3. Use multi-level features via temporal 1d convolution layers

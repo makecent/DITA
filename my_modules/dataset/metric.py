@@ -153,7 +153,6 @@ class TH14Metric(VOCMetric):
         return merged_gts, merged_preds
 
     def non_maximum_suppression(self, preds):
-        min_x = 1000
         preds_nms = []
         for pred_v in preds:
             if self.nms_cfg is not None and pred_v.in_overlap.sum() > 1:
