@@ -47,7 +47,7 @@ train_dataloader = dict(
                  iof_thr=0.75,
                  window_stride=64,  # overlap=0.75
                  pipeline=train_pipeline,
-                 data_prefix=dict(feat='features/thumos_feat_VideoMAE2_16input_4stride_2048_RGB')))
+                 data_prefix=dict(feat='features/thumos_feat_VideoMAE2-RGB_I3D-Flow_2432')))
 val_dataloader = dict(
     dataset=dict(feat_stride=4,
                  fix_slice=True,
@@ -55,7 +55,7 @@ val_dataloader = dict(
                  window_size=256,
                  window_stride=192,  # overlap=0.25
                  pipeline=test_pipeline,
-                 data_prefix=dict(feat='features/thumos_feat_VideoMAE2_16input_4stride_2048_RGB')))
+                 data_prefix=dict(feat='features/thumos_feat_VideoMAE2-RGB_I3D-Flow_2432')))
 
 # 3. Use multi-level features via temporal 1d convolution layers
 # model setting
@@ -67,13 +67,13 @@ model = dict(
         dict(
             type='DownSampler1D',
             num_levels=4,
-            in_channels=1408,
-            out_channels=1408,
+            in_channels=2432,
+            out_channels=2432,
             out_indices=(0, 1, 2, 3),
             mask=False),
         dict(
             type='ChannelMapper',
-            in_channels=[1408, 1408, 1408, 1408],
+            in_channels=[2432, 2432, 2432, 2432],
             kernel_size=1,
             out_channels=256,
             act_cfg=None,
@@ -89,5 +89,11 @@ model = dict(
             match_costs=[
                 dict(type='FocalLossCost', weight=2.0),  # from 6.0 to 2.0
                 dict(type='CustomBBoxL1Cost', weight=5.0, box_format='xywh'),
-                dict(type='CustomIoUCost', iou_mode='giou', weight=2.0)]))  # iou to giou
+                dict(type='CustomIoUCost', iou_mode='giou', weight=2.0)])),  # iou to giou
+    test_cfg=dict(max_per_img=200)
 )
+# val_evaluator = dict(
+#     type='TH14Metric',
+#     metric='mAP',
+#     iou_thrs=[0.3, 0.4, 0.5, 0.6, 0.7],
+#     nms_cfg=dict(type='nms', iou_thr=0.2))

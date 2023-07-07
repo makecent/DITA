@@ -34,8 +34,8 @@ class Thumos14FeatDataset(BaseDetDataset):
                  on_the_fly=True,  # whether slice the feature on the fly and pre-slice.
                  tadtr_style=True,  # whether slice the feature in a TadTR style.
                  iof_thr=0.75,  # The Intersection over Foreground (IoF) threshold used to filter sliding windows.
-                 window_size=None,  # only applicable to testing phase, should be equal to the training window size.
-                 window_stride=None,  # only applicable to testing phase, the fixed window stride in testing.
+                 window_size=None,  # the window size of sliding window.
+                 window_stride=None,  # the window stride of sliding window.
                  **kwargs):
         self.feat_stride = feat_stride
         self.skip_short = skip_short

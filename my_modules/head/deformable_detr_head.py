@@ -1,6 +1,6 @@
+import torch.nn as nn
 from mmdet.models.dense_heads import DeformableDETRHead
 from mmdet.registry import MODELS
-from torch import nn
 
 from my_modules.layers.pseudo_layers import Pseudo4DLinear
 
