@@ -32,8 +32,8 @@ train_dataloader = dict(
         window_size=128,
         window_stride=32,  # overlap=0.75
         iof_thr=0.75,
-        skip_short=True,
-        skip_wrong=True,
+        skip_short=0.3,   # skip action annotations with duration less than 0.3 seconds
+        skip_wrong=True,  # skip action annotations out of the range of video duration
         data_prefix=dict(feat='features/thumos_feat_TadTR_64input_8stride_2048'),
         filter_cfg=dict(filter_empty_gt=False),
         pipeline=train_pipeline))

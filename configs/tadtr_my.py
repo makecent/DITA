@@ -56,6 +56,7 @@ val_dataloader = dict(
                  window_stride=192,  # overlap=0.25
                  pipeline=test_pipeline,
                  data_prefix=dict(feat='features/thumos_feat_VideoMAE2-RGB_I3D-Flow_2432')))
+test_dataloader = val_dataloader
 
 # 3. Use multi-level features via temporal 1d convolution layers
 # model setting
@@ -92,8 +93,12 @@ model = dict(
                 dict(type='CustomIoUCost', iou_mode='giou', weight=2.0)])),  # iou to giou
     test_cfg=dict(max_per_img=200)
 )
-# val_evaluator = dict(
-#     type='TH14Metric',
-#     metric='mAP',
-#     iou_thrs=[0.3, 0.4, 0.5, 0.6, 0.7],
-#     nms_cfg=dict(type='nms', iou_thr=0.2))
+val_evaluator = dict(
+    type='TH14Metric',
+    metric='mAP',
+    iou_thrs=[0.3, 0.4, 0.5, 0.6, 0.7],
+    nms_cfg=dict(type='nms', iou_thr=0.4),
+    max_per_video=False,
+    score_thr=0.0,  # screen out the detections with score less than score_thr
+    duration_thr=0.0)   # screen out the detections with duration less than duration_thr (in second)
+test_evaluator = val_evaluator

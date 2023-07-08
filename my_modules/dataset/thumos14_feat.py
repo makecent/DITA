@@ -162,8 +162,9 @@ class Thumos14FeatDataset(BaseDetDataset):
             # Skip annotations that are too short. The threshold could be the stride of feature extraction.
             # For example, if the features were extracted every 8 frames,
             # then the threshold should be greater than 8/30 = 0.27s
-            if segment[1] - segment[0] < 0.3 and self.skip_short:
-                print(f"too short segment annotation in {video_name}: {segment}, skipped")
+            if isinstance(self.skip_short, (int, float)):
+                if segment[1] - segment[0] < self.skip_short:
+                    print(f"too short segment annotation in {video_name}: {segment}, skipped")
 
             # Ambiguous annotations are labeled as ignored ground truth
             if label == 'Ambiguous':

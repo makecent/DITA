@@ -19,11 +19,15 @@ class TH14Metric(VOCMetric):
     def __init__(self,
                  nms_cfg=dict(type='nms', iou_thr=0.4),
                  max_per_video: int = False,
+                 score_thr=0.0,
+                 duration_thr=0.0,
                  eval_mode: str = 'area',
                  **kwargs):
         super().__init__(eval_mode=eval_mode, **kwargs)
         self.nms_cfg = nms_cfg
         self.max_per_video = max_per_video
+        self.score_thr = score_thr
+        self.duration_thr = duration_thr
 
     def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
         """Process one batch of data samples and predictions. The processed
@@ -36,30 +40,35 @@ class TH14Metric(VOCMetric):
                 contain annotations and predictions.
         """
         for data_sample in data_samples:
-            gt = copy.deepcopy(data_sample)
+            data = copy.deepcopy(data_sample)
             # TODO: Need to refactor to support LoadAnnotations
-            gt_instances = gt['gt_instances']
-            gt_ignore_instances = gt['ignored_instances']
+            gts, dets, gts_ignore = data['gt_instances'], data['pred_instances'], data['ignored_instances']
             ann = dict(
-                video_name=gt['img_id'],  # for the purpose of future grouping detections of same video.
-                overlap=gt['overlap'],  # for the purpose of NMS on overlapped region in testing videos
-                labels=gt_instances['labels'].cpu().numpy(),
-                bboxes=gt_instances['bboxes'].cpu().numpy(),
-                bboxes_ignore=gt_ignore_instances.get('bboxes', torch.empty((0, 4))).cpu().numpy(),
-                labels_ignore=gt_ignore_instances.get('labels', torch.empty(0, )).cpu().numpy())
+                video_name=data['img_id'],  # for the purpose of future grouping detections of same video.
+                overlap=data['overlap'],  # for the purpose of NMS on overlapped region in testing videos
+                labels=gts['labels'].cpu().numpy(),
+                bboxes=gts['bboxes'].cpu().numpy(),
+                bboxes_ignore=gts_ignore.get('bboxes', torch.empty((0, 4))).cpu().numpy(),
+                labels_ignore=gts_ignore.get('labels', torch.empty(0, )).cpu().numpy())
 
-            # Format predictions to InstanceData
-            dets = InstanceData(**data_sample['pred_instances'])
-
-            dets['bboxes'] = dets['bboxes'].cpu()
             # Convert the format of segment predictions from feature-unit to second-unit (add window-offset back first).
-            dets['bboxes'] = (dets['bboxes'] + gt['offset']) * gt['feat_stride'] / gt['fps']
+            dets['bboxes'] = (dets['bboxes'] + data['offset']) * data['feat_stride'] / data['fps']
             # Set y1, y2 of predictions the fixed value.
             dets['bboxes'][:, 1] = 0.1
             dets['bboxes'][:, 3] = 0.9
 
-            dets['scores'] = dets['scores'].cpu()
-            dets['labels'] = dets['labels'].cpu()
+            # Filter out predictions with low scores
+            valid_inds = dets['scores'] > self.score_thr
+
+            # Filter out predictions with short duration
+            valid_inds &= (dets['bboxes'][:, 2] - dets['bboxes'][:, 0]) > self.duration_thr
+
+            dets['bboxes'] = dets['bboxes'][valid_inds].cpu()
+            dets['scores'] = dets['scores'][valid_inds].cpu()
+            dets['labels'] = dets['labels'][valid_inds].cpu()
+
+            # Format predictions to InstanceData
+            dets = InstanceData(**dets)
 
             self.results.append((ann, dets))
 
