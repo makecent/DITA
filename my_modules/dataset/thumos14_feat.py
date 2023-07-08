@@ -6,6 +6,7 @@ import mmengine
 import numpy as np
 from mmdet.datasets import BaseDetDataset
 from mmdet.registry import DATASETS
+from mmengine import print_log, MMLogger
 
 from my_modules.dataset.transform import SlidingWindow
 
@@ -143,7 +144,7 @@ class Thumos14FeatDataset(BaseDetDataset):
                                               gt_ignore_flags=ignore_flags_f))
 
                     data_list.append(deepcopy(data_info))
-        print(f"number of feature windows:\t {len(data_list)}")
+        print_log(f"number of feature windows:\t {len(data_list)}", logger=MMLogger.get_current_instance())
         return data_list
 
     def parse_labels(self, video_name, video_info):
@@ -156,7 +157,8 @@ class Thumos14FeatDataset(BaseDetDataset):
 
             # Skip annotations that are out of range.
             if not (0 <= segment[0] < segment[1] <= video_duration) and self.skip_wrong:
-                print(f"invalid segment annotation in {video_name}: {segment}, duration={video_duration}, skipped")
+                print_log(f"invalid segment annotation in {video_name}: {segment}, duration={video_duration}, skipped",
+                          logger=MMLogger.get_current_instance())
                 continue
 
             # Skip annotations that are too short. The threshold could be the stride of feature extraction.
@@ -164,7 +166,8 @@ class Thumos14FeatDataset(BaseDetDataset):
             # then the threshold should be greater than 8/30 = 0.27s
             if isinstance(self.skip_short, (int, float)):
                 if segment[1] - segment[0] < self.skip_short:
-                    print(f"too short segment annotation in {video_name}: {segment}, skipped")
+                    print_log(f"too short segment annotation in {video_name}: {segment}, skipped",
+                              logger=MMLogger.get_current_instance())
 
             # Ambiguous annotations are labeled as ignored ground truth
             if label == 'Ambiguous':
