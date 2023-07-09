@@ -40,7 +40,7 @@ class CustomDeformableDETR(DeformableDETR):
         self.positional_encoding = CustomSinePositionalEncoding(
             **pos_cfg)
         if not self.as_two_stage:
-            self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 2, delta=False)
+            self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1, delta=False)
         self.query_embedding = nn.Embedding(self.num_queries,
                                             self.embed_dims * 2)
         self.pos_trans_fc = nn.Identity()
