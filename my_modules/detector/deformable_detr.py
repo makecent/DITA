@@ -5,12 +5,22 @@ import torch.nn.functional as F
 from mmdet.models.detectors import DeformableDETR
 from mmdet.registry import MODELS
 from mmdet.structures import OptSampleList
-from torch import Tensor
+from torch import Tensor, nn
 
 from my_modules.layers.pseudo_layers import Pseudo2DLinear
 from my_modules.loss.positional_encoding import CustomSinePositionalEncoding
 from ..layers import CustomDeformableDetrTransformerDecoder, CustomDeformableDetrTransformerEncoder
+import math
+from typing import Dict, Tuple
 
+import torch
+import torch.nn.functional as F
+from mmcv.cnn.bricks.transformer import MultiScaleDeformableAttention
+from mmengine.model import xavier_init
+from torch import Tensor, nn
+from torch.nn.init import normal_
+
+from mmdet.registry import MODELS
 
 @MODELS.register_module()
 class CustomDeformableDETR(DeformableDETR):
@@ -30,7 +40,33 @@ class CustomDeformableDETR(DeformableDETR):
         self.positional_encoding = CustomSinePositionalEncoding(
             **pos_cfg)
         if not self.as_two_stage:
-            self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1)
+            self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 2, delta=False)
+        self.query_embedding = nn.Embedding(self.num_queries,
+                                            self.embed_dims * 2)
+        self.pos_trans_fc = nn.Identity()
+        self.pos_trans_norm = nn.Identity()
+
+        # self.pos_trans_fc = nn.Linear(self.embed_dims,
+        #                               self.embed_dims)
+        # self.pos_trans_norm = nn.LayerNorm(self.embed_dims)
+
+    def init_weights(self) -> None:
+        """Initialize weights for Transformer and other components."""
+        super(DeformableDETR, self).init_weights()
+        for coder in self.encoder, self.decoder:
+            for p in coder.parameters():
+                if p.dim() > 1:
+                    nn.init.xavier_uniform_(p)
+        for m in self.modules():
+            if isinstance(m, MultiScaleDeformableAttention):
+                m.init_weights()
+        if self.as_two_stage:
+            nn.init.xavier_uniform_(self.memory_trans_fc.weight)
+            # nn.init.xavier_uniform_(self.pos_trans_fc.weight)
+        else:
+            xavier_init(
+                self.reference_points_fc, distribution='uniform', bias=0.)
+        normal_(self.level_embed)
 
     def pre_decoder(self, memory: Tensor, memory_mask: Tensor,
                     spatial_shapes: Tensor) -> Tuple[Dict, Dict]:
@@ -86,18 +122,30 @@ class CustomDeformableDETR(DeformableDETR):
             # See https://github.com/open-mmlab/mmdetection/blob/master/mmdet/models/dense_heads/deformable_detr_head.py#L241 # noqa
             # This follows the official implementation of Deformable DETR.
             topk_proposals = torch.topk(
-                enc_outputs_class[..., 0], self.num_queries, dim=1)[1]
+                enc_outputs_class.max(-1)[0], self.num_queries, dim=1)[1]
+            cls_out_features = self.bbox_head.cls_branches[self.decoder.num_layers].out_features
+            topk_scores = torch.gather(
+                enc_outputs_class, 1,
+                topk_proposals.unsqueeze(-1).repeat(1, 1, cls_out_features))
             topk_coords_unact = torch.gather(
                 enc_outputs_coord_unact, 1,
                 topk_proposals.unsqueeze(-1).repeat(1, 1, 4))
+            topk_coords = topk_coords_unact.sigmoid()
             topk_coords_unact = topk_coords_unact.detach()
             reference_points = topk_coords_unact.sigmoid()
-            reference_points[..., 1] = 0.5
-            reference_points[..., 3] = 0.
-            pos_trans_out = self.pos_trans_fc(
-                self.get_proposal_pos_embed(topk_coords_unact[..., ::2], num_pos_feats=256))
-            pos_trans_out = self.pos_trans_norm(pos_trans_out)
-            query_pos, query = torch.split(pos_trans_out, c, dim=2)
+            # pos_trans_out = self.pos_trans_fc(
+            #     self.get_proposal_pos_embed(topk_coords_unact[..., ::2], num_pos_feats=256))
+            # pos_trans_out = self.pos_trans_norm(pos_trans_out)
+            # query_pos, query = torch.split(pos_trans_out, c, dim=2)
+
+            # query = self.query_embedding.weight[:, None, :]
+            # query = query.repeat(1, batch_size, 1).transpose(0, 1)
+
+            query_embed = self.query_embedding.weight
+            query_pos, query = torch.split(query_embed, c, dim=1)
+            query_pos = query_pos.unsqueeze(0).expand(batch_size, -1, -1)
+            query = query.unsqueeze(0).expand(batch_size, -1, -1)
+
         else:
             enc_outputs_class, enc_outputs_coord = None, None
             query_embed = self.query_embedding.weight
@@ -112,8 +160,8 @@ class CustomDeformableDETR(DeformableDETR):
             memory=memory,
             reference_points=reference_points)
         head_inputs_dict = dict(
-            enc_outputs_class=enc_outputs_class,
-            enc_outputs_coord=enc_outputs_coord) if self.training else dict()
+            enc_outputs_class=topk_scores,
+            enc_outputs_coord=topk_coords) if self.training else dict()
         return decoder_inputs_dict, head_inputs_dict
 
     # def pre_transformer(

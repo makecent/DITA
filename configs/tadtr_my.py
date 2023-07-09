@@ -61,6 +61,7 @@ test_dataloader = val_dataloader
 # 3. Use multi-level features via temporal 1d convolution layers
 # model setting
 model = dict(
+    num_queries=200,
     num_feature_levels=4,
     as_two_stage=False,
     backbone=dict(type='PseudoBackbone', multi_scale=False),  # No backbone since we use pre-extracted features.

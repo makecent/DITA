@@ -6,7 +6,7 @@ from mmdet.structures import SampleList
 from mmdet.utils import InstanceList
 from torch import nn, Tensor
 
-from my_modules.layers.pseudo_layers import Pseudo4DLinear
+from my_modules.layers.pseudo_layers import Pseudo4DRegLinear
 
 
 @MODELS.register_module()
@@ -23,7 +23,7 @@ class CustomDINOHead(DINOHead):
         """Change the regression output dimension from 4 to 2"""
         super()._init_layers()
         for reg_branch in self.reg_branches:
-            reg_branch[-1] = Pseudo4DLinear(self.embed_dims)
+            reg_branch[-1] = Pseudo4DRegLinear(self.embed_dims)
 
     def init_weights(self) -> None:
         super().init_weights()
