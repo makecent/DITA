@@ -47,7 +47,7 @@ train_dataloader = dict(
                  iof_thr=0.75,
                  window_stride=64,  # overlap=0.75
                  pipeline=train_pipeline,
-                 data_prefix=dict(feat='features/thumos_feat_TadTR_64input_8stride_2048')))
+                 data_prefix=dict(feat='features/thumos_feat_VideoMAE2-RGB_I3D-Flow_2432')))
 val_dataloader = dict(
     dataset=dict(feat_stride=4,
                  fix_slice=True,
@@ -55,28 +55,28 @@ val_dataloader = dict(
                  window_size=256,
                  window_stride=192,  # overlap=0.25
                  pipeline=test_pipeline,
-                 data_prefix=dict(feat='features/thumos_feat_TadTR_64input_8stride_2048')))
+                 data_prefix=dict(feat='features/thumos_feat_VideoMAE2-RGB_I3D-Flow_2432')))
 test_dataloader = val_dataloader
 
 # 3. Use multi-level features via temporal 1d convolution layers
 # model setting
 model = dict(
-    type='CustomDINO',
+    type='DINO',
     num_feature_levels=4,
     with_box_refine=True,
-    as_two_stage=False,      # must be True?
+    as_two_stage=True,      # must be True?
     backbone=dict(type='PseudoBackbone', multi_scale=False),  # No backbone since we use pre-extracted features.
     neck=[
         dict(
             type='DownSampler1D',
             num_levels=4,
-            in_channels=2048,
-            out_channels=2048,
+            in_channels=2432,
+            out_channels=2432,
             out_indices=(0, 1, 2, 3),
             mask=False),
         dict(
             type='ChannelMapper',
-            in_channels=[2048, 2048, 2048, 2048],
+            in_channels=[2432, 2432, 2432, 2432],
             kernel_size=1,
             out_channels=256,
             act_cfg=None,
