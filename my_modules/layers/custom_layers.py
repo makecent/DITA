@@ -9,10 +9,10 @@ from mmcv.cnn import build_norm_layer
 from mmcv.cnn.bricks.transformer import FFN, MultiheadAttention
 from mmcv.ops import MultiScaleDeformableAttention
 from mmdet.models.layers import DeformableDetrTransformerEncoder, DeformableDetrTransformerDecoder, \
-    DeformableDetrTransformerDecoderLayer, DeformableDetrTransformerEncoderLayer
+    DeformableDetrTransformerDecoderLayer, DeformableDetrTransformerEncoderLayer, DinoTransformerDecoder
 from mmengine.model import ModuleList
 from mmengine.model import constant_init, xavier_init
-
+from mmdet.models.layers import MLP
 from my_modules.layers.pseudo_layers import Pseudo2DLinear
 
 
@@ -141,6 +141,22 @@ class CustomDeformableDetrTransformerDecoder(DeformableDetrTransformerDecoder):
         if self.post_norm_cfg is not None:
             raise ValueError('There is not post_norm in '
                              f'{self._get_name()}')
+
+class CustomDinoTransformerDecoder(DinoTransformerDecoder):
+
+    def _init_layers(self) -> None:
+        """Initialize decoder layers."""
+        self.layers = ModuleList([
+            CustomDeformableDetrTransformerDecoderLayer(**self.layer_cfg)
+            for _ in range(self.num_layers)
+        ])
+        self.embed_dims = self.layers[0].embed_dims
+        if self.post_norm_cfg is not None:
+            raise ValueError('There is not post_norm in '
+                             f'{self._get_name()}')
+        self.ref_point_head = MLP(self.embed_dims * 2, self.embed_dims,
+                                  self.embed_dims, 2)
+        self.norm = nn.LayerNorm(self.embed_dims)
 
 
 class CustomDeformableDetrTransformerDecoderLayer(DeformableDetrTransformerDecoderLayer):

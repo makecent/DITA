@@ -1,20 +1,11 @@
-from typing import Dict, Tuple
-
-import torch
-import torch.nn.functional as F
 from mmdet.models.detectors import DeformableDETR
-from mmdet.registry import MODELS
-from mmdet.structures import OptSampleList
-from torch import Tensor, nn
 
 from my_modules.layers.pseudo_layers import Pseudo2DLinear
-from my_modules.loss.positional_encoding import CustomSinePositionalEncoding
+from my_modules.layers.positional_encoding import CustomSinePositionalEncoding
 from ..layers import CustomDeformableDetrTransformerDecoder, CustomDeformableDetrTransformerEncoder
-import math
 from typing import Dict, Tuple
 
 import torch
-import torch.nn.functional as F
 from mmcv.cnn.bricks.transformer import MultiScaleDeformableAttention
 from mmengine.model import xavier_init
 from torch import Tensor, nn
