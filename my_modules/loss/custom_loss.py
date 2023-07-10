@@ -56,7 +56,9 @@ def py_sigmoid_focal_loss(pred,
     """
     pred_sigmoid = pred.sigmoid()
     target = target.type_as(pred)
-    pt = (iou - pred_sigmoid) * target * iou + pred_sigmoid * (1 - target)
+    f = iou**2
+    f = f/f.max()
+    pt = (f - pred_sigmoid) * target * f + pred_sigmoid * (1 - target)
     focal_weight = (alpha * target + (1 - alpha) *
                     (1 - target)) * pt.pow(gamma)
     loss = F.binary_cross_entropy_with_logits(
@@ -149,7 +151,9 @@ class PositionFocalLossCost(FocalLossCost):
         Returns:
             torch.Tensor: cls_cost value with weight
         """
-        cls_pred = cls_pred[:, gt_labels].sigmoid() * giou
+        f = (giou + 1)/2
+        f = f ** 0.5
+        cls_pred = cls_pred[:, gt_labels].sigmoid() * f
         neg_cost = -(1 - cls_pred + self.eps).log() * (
                 1 - self.alpha) * cls_pred.pow(self.gamma)
         pos_cost = -(cls_pred + self.eps).log() * self.alpha * (

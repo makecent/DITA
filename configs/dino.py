@@ -87,13 +87,13 @@ model = dict(
     encoder=dict(num_layers=4, layer_cfg=dict(self_attn_cfg=dict(num_levels=4))),
     decoder=dict(num_layers=4, layer_cfg=dict(cross_attn_cfg=dict(num_levels=4))),
     bbox_head=dict(type='CustomDINOHead', num_classes=20, sync_cls_avg_factor=True,
-                   loss_cls=dict(type='FocalLoss', use_sigmoid=True, gamma=2.0, alpha=0.25, loss_weight=2.0),  # 2.0
+                   loss_cls=dict(type='PositionFocalLoss', use_sigmoid=True, gamma=2.0, alpha=0.25, loss_weight=2.0),  # 2.0
                    loss_bbox=dict(type='CustomL1Loss', loss_weight=5.0),
                    loss_iou=dict(_delete_=True, type='CustomGIoULoss', loss_weight=2.0)),
     dn_cfg=dict(label_noise_scale=0.5, box_noise_scale=1.0,
                 group_cfg=dict(dynamic=True, num_groups=None, num_dn_queries=100)),
-    train_cfg=dict(assigner=dict(type='CustomHungarianAssigner',
-                                 match_costs=[dict(type='PositionFocalLossCost', weight=2.0, gamma=2.0, alpha=0.25),
+    train_cfg=dict(assigner=dict(type='HungarianAssigner',
+                                 match_costs=[dict(type='FocalLossCost', weight=2.0, gamma=2.0, alpha=0.25),
                                               dict(type='CustomBBoxL1Cost', weight=5.0, box_format='xywh'),
                                               dict(type='CustomIoUCost', iou_mode='giou', weight=2.0)]),
 
