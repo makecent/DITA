@@ -61,10 +61,11 @@ test_dataloader = val_dataloader
 # 3. Use multi-level features via temporal 1d convolution layers
 # model setting
 model = dict(
-    type='DINO',
+    type='CustomDINO',
+    num_queries=300,
     num_feature_levels=4,
     with_box_refine=True,
-    as_two_stage=True,      # must be True?
+    as_two_stage=False,      # must be True?
     backbone=dict(type='PseudoBackbone', multi_scale=False),  # No backbone since we use pre-extracted features.
     neck=[
         dict(
@@ -85,12 +86,12 @@ model = dict(
     positional_encoding=dict(offset=-0.5),
     encoder=dict(num_layers=4, layer_cfg=dict(self_attn_cfg=dict(num_levels=4))),
     decoder=dict(num_layers=4, layer_cfg=dict(cross_attn_cfg=dict(num_levels=4))),
-    bbox_head=dict(type='DINOHead', num_classes=20, sync_cls_avg_factor=True,
+    bbox_head=dict(type='CustomDINOHead', num_classes=20, sync_cls_avg_factor=True,
                    loss_cls=dict(type='FocalLoss', use_sigmoid=True, gamma=2.0, alpha=0.25, loss_weight=2.0),  # 2.0
                    loss_bbox=dict(type='CustomL1Loss', loss_weight=5.0),
                    loss_iou=dict(_delete_=True, type='CustomGIoULoss', loss_weight=2.0)),
     dn_cfg=dict(label_noise_scale=0.5, box_noise_scale=1.0,
-                group_cfg=dict(dynamic=True, num_groups=None, num_dn_queries=10)),
+                group_cfg=dict(dynamic=True, num_groups=None, num_dn_queries=100)),
     train_cfg=dict(assigner=dict(type='HungarianAssigner',
                                  match_costs=[dict(type='FocalLossCost', weight=2.0, gamma=2.0, alpha=0.25),
                                               dict(type='CustomBBoxL1Cost', weight=5.0, box_format='xywh'),

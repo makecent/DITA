@@ -1,5 +1,3 @@
-# Copyright (c) OpenMMLab. All rights reserved.
-
 from typing import Dict, Tuple
 
 import torch
@@ -9,7 +7,7 @@ from mmdet.registry import MODELS
 from mmdet.structures import OptSampleList
 from mmdet.utils import OptConfigType
 from torch import Tensor, nn
-from torch.nn.init import normal_
+from torch.nn.init import normal_, zeros_
 
 from my_modules.layers.custom_layers import CustomDeformableDetrTransformerEncoder, CustomDinoTransformerDecoder
 from my_modules.layers.positional_encoding import CustomSinePositionalEncoding
@@ -155,6 +153,7 @@ class CustomDINO(DINO):
             topk_score, topk_coords = None, None
             query = self.query_embedding.weight.unsqueeze(0).expand(bs, -1, -1)
             reference_points_unact = self.reference_points_fc(query)
+
         if self.training:
             dn_label_query, dn_bbox_query, dn_mask, dn_meta = \
                 self.dn_query_generator(batch_data_samples)
