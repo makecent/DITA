@@ -1,19 +1,22 @@
 import math
 import warnings
-from typing import Optional
 
 import mmengine
-import torch
 import torch.nn as nn
+from mmdet.models.layers import DeformableDetrTransformerEncoder, DeformableDetrTransformerDecoder, \
+    DeformableDetrTransformerDecoderLayer, DeformableDetrTransformerEncoderLayer, DinoTransformerDecoder
+from mmdet.models.layers import MLP
+from mmengine.model import constant_init, xavier_init
+
+from my_modules.layers.pseudo_layers import Pseudo2DLinear
+from typing import Optional, Union
+
+import torch
 from mmcv.cnn import build_norm_layer
 from mmcv.cnn.bricks.transformer import FFN, MultiheadAttention
 from mmcv.ops import MultiScaleDeformableAttention
-from mmdet.models.layers import DeformableDetrTransformerEncoder, DeformableDetrTransformerDecoder, \
-    DeformableDetrTransformerDecoderLayer, DeformableDetrTransformerEncoderLayer, DinoTransformerDecoder
 from mmengine.model import ModuleList
-from mmengine.model import constant_init, xavier_init
-from mmdet.models.layers import MLP
-from my_modules.layers.pseudo_layers import Pseudo2DLinear
+from torch import Tensor, nn
 
 
 def zero_y_reference_points(forward_method):
@@ -120,6 +123,10 @@ class CustomMultiScaleDeformableAttention(MultiScaleDeformableAttention):
 
 class CustomDeformableDetrTransformerEncoder(DeformableDetrTransformerEncoder):
 
+    def __init__(self, memory_fuse=True, *args, **kwargs) -> None:
+        self.memory_fuse = memory_fuse
+        super().__init__(*args, **kwargs)
+
     def _init_layers(self) -> None:
         """Initialize encoder layers."""
         self.layers = ModuleList([
@@ -127,6 +134,55 @@ class CustomDeformableDetrTransformerEncoder(DeformableDetrTransformerEncoder):
             for _ in range(self.num_layers)
         ])
         self.embed_dims = self.layers[0].embed_dims
+        if self.memory_fuse:
+            self.proj = nn.Linear(self.embed_dims * (self.num_layers + 1), self.embed_dims)
+            self.norm = nn.LayerNorm(self.embed_dims)
+
+    def forward(self, query: Tensor, query_pos: Tensor,
+                key_padding_mask: Tensor, spatial_shapes: Tensor,
+                level_start_index: Tensor, valid_ratios: Tensor,
+                **kwargs) -> Tensor:
+        """Forward function of Transformer encoder.
+
+        Args:
+            query (Tensor): The input query, has shape (bs, num_queries, dim).
+            query_pos (Tensor): The positional encoding for query, has shape
+                (bs, num_queries, dim).
+            key_padding_mask (Tensor): The `key_padding_mask` of `self_attn`
+                input. ByteTensor, has shape (bs, num_queries).
+            spatial_shapes (Tensor): Spatial shapes of features in all levels,
+                has shape (num_levels, 2), last dimension represents (h, w).
+            level_start_index (Tensor): The start index of each level.
+                A tensor has shape (num_levels, ) and can be represented
+                as [0, h_0*w_0, h_0*w_0+h_1*w_1, ...].
+            valid_ratios (Tensor): The ratios of the valid width and the valid
+                height relative to the width and the height of features in all
+                levels, has shape (bs, num_levels, 2).
+
+        Returns:
+            Tensor: Output queries of Transformer encoder, which is also
+            called 'encoder output embeddings' or 'memory', has shape
+            (bs, num_queries, dim)
+        """
+        reference_points = self.get_encoder_reference_points(
+            spatial_shapes, valid_ratios, device=query.device)
+        intermidiate_query = [query]
+        for layer in self.layers:
+            query = layer(
+                query=query,
+                query_pos=query_pos,
+                key_padding_mask=key_padding_mask,
+                spatial_shapes=spatial_shapes,
+                level_start_index=level_start_index,
+                valid_ratios=valid_ratios,
+                reference_points=reference_points,
+                **kwargs)
+            intermidiate_query.append(query)
+        if self.memory_fuse:
+            query = torch.cat(intermidiate_query, dim=-1)
+            query = self.proj(query)
+            query = self.norm(query)
+        return query
 
 
 class CustomDeformableDetrTransformerDecoder(DeformableDetrTransformerDecoder):
@@ -141,6 +197,7 @@ class CustomDeformableDetrTransformerDecoder(DeformableDetrTransformerDecoder):
         if self.post_norm_cfg is not None:
             raise ValueError('There is not post_norm in '
                              f'{self._get_name()}')
+
 
 class CustomDinoTransformerDecoder(DinoTransformerDecoder):
 
