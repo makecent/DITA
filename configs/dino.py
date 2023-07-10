@@ -92,8 +92,8 @@ model = dict(
                    loss_iou=dict(_delete_=True, type='CustomGIoULoss', loss_weight=2.0)),
     dn_cfg=dict(label_noise_scale=0.5, box_noise_scale=1.0,
                 group_cfg=dict(dynamic=True, num_groups=None, num_dn_queries=100)),
-    train_cfg=dict(assigner=dict(type='HungarianAssigner',
-                                 match_costs=[dict(type='FocalLossCost', weight=2.0, gamma=2.0, alpha=0.25),
+    train_cfg=dict(assigner=dict(type='CustomHungarianAssigner',
+                                 match_costs=[dict(type='PositionFocalLossCost', weight=2.0, gamma=2.0, alpha=0.25),
                                               dict(type='CustomBBoxL1Cost', weight=5.0, box_format='xywh'),
                                               dict(type='CustomIoUCost', iou_mode='giou', weight=2.0)]),
 

@@ -1,7 +1,10 @@
+from mmdet.models.losses import L1Loss, GIoULoss, IoULoss, FocalLoss, weight_reduce_loss
+from typing import Optional, Union
+
 import torch
 import torch.nn.functional as F
 from mmdet.models.losses import L1Loss, GIoULoss, IoULoss, FocalLoss, weight_reduce_loss
-from mmdet.models.task_modules import IoUCost, BBoxL1Cost
+from mmdet.models.task_modules import IoUCost, BBoxL1Cost, FocalLossCost
 from mmdet.registry import MODELS
 from mmdet.registry import TASK_UTILS
 from mmengine.structures import InstanceData
@@ -25,6 +28,7 @@ def zero_out_pred_coordinates_decorator(forward_method):
         return forward_method(self, pred_instances, gt_instances, *args, **kwargs)
 
     return wrapper
+
 
 def py_sigmoid_focal_loss(pred,
                           target,
@@ -52,7 +56,7 @@ def py_sigmoid_focal_loss(pred,
     """
     pred_sigmoid = pred.sigmoid()
     target = target.type_as(pred)
-    pt = (iou - pred_sigmoid) * target*iou + pred_sigmoid * (1 - target)
+    pt = (iou - pred_sigmoid) * target * iou + pred_sigmoid * (1 - target)
     focal_weight = (alpha * target + (1 - alpha) *
                     (1 - target)) * pt.pow(gamma)
     loss = F.binary_cross_entropy_with_logits(
@@ -73,6 +77,7 @@ def py_sigmoid_focal_loss(pred,
         assert weight.ndim == loss.ndim
     loss = weight_reduce_loss(loss, weight, reduction, avg_factor)
     return loss
+
 
 @MODELS.register_module()
 class PositionFocalLoss(FocalLoss):
@@ -129,6 +134,57 @@ class PositionFocalLoss(FocalLoss):
         else:
             raise NotImplementedError
         return loss_cls
+
+
+@TASK_UTILS.register_module()
+class PositionFocalLossCost(FocalLossCost):
+
+    def _focal_loss_cost(self, cls_pred: Tensor, gt_labels: Tensor, giou: Tensor) -> Tensor:
+        """
+        Args:
+            cls_pred (Tensor): Predicted classification logits, shape
+                (num_queries, num_class).
+            gt_labels (Tensor): Label of `gt_bboxes`, shape (num_gt,).
+
+        Returns:
+            torch.Tensor: cls_cost value with weight
+        """
+        cls_pred = cls_pred[:, gt_labels].sigmoid() * giou
+        neg_cost = -(1 - cls_pred + self.eps).log() * (
+                1 - self.alpha) * cls_pred.pow(self.gamma)
+        pos_cost = -(cls_pred + self.eps).log() * self.alpha * (
+                1 - cls_pred).pow(self.gamma)
+
+        # cls_cost = pos_cost[:, gt_labels] - neg_cost[:, gt_labels]
+        cls_cost = pos_cost - neg_cost
+        return cls_cost * self.weight
+
+    def __call__(self,
+                 pred_instances: InstanceData,
+                 gt_instances: InstanceData,
+                 gious,
+                 img_meta: Optional[dict] = None,
+                 **kwargs) -> Tensor:
+        """Compute match cost.
+
+        Args:
+            pred_instances (:obj:`InstanceData`): Predicted instances which
+                must contain ``scores`` or ``masks``.
+            gt_instances (:obj:`InstanceData`): Ground truth which must contain
+                ``labels`` or ``mask``.
+            img_meta (Optional[dict]): Image information. Defaults to None.
+
+        Returns:
+            Tensor: Match Cost matrix of shape (num_preds, num_gts).
+        """
+        if self.binary_input:
+            pred_masks = pred_instances.masks
+            gt_masks = gt_instances.masks
+            return self._mask_focal_loss_cost(pred_masks, gt_masks)
+        else:
+            pred_scores = pred_instances.scores
+            gt_labels = gt_instances.labels
+            return self._focal_loss_cost(pred_scores, gt_labels, gious)
 
 
 @MODELS.register_module(force=True)
