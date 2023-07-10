@@ -3,26 +3,38 @@ _base_ = [
 ]
 
 # 1. Use cosine annealing lr to replace the original step lr in TadTR
-optim_wrapper = dict(optimizer=dict(lr=5e-4))
+max_epochs = 12
 train_cfg = dict(
-    type='EpochBasedTrainLoop', max_epochs=16, val_interval=1)
+    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+optim_wrapper = dict(optimizer=dict(lr=1e-4))
 param_scheduler = [
     dict(
-        type='LinearLR',
-        start_factor=0.001,
-        by_epoch=True,
+        type='MultiStepLR',
         begin=0,
-        end=4,
-        convert_to_iter_based=True),
-    dict(
-        type='CosineAnnealingLR',
+        end=max_epochs,
         by_epoch=True,
-        T_max=12,
-        begin=4,
-        end=16,
-        eta_min_ratio=0.01,
-        convert_to_iter_based=True)
+        milestones=[10],  # 14 for TadTR
+        gamma=0.1),
 ]
+# train_cfg = dict(
+#     type='EpochBasedTrainLoop', max_epochs=16, val_interval=1)
+# param_scheduler = [
+#     dict(
+#         type='LinearLR',
+#         start_factor=0.001,
+#         by_epoch=True,
+#         begin=0,
+#         end=4,
+#         convert_to_iter_based=True),
+#     dict(
+#         type='CosineAnnealingLR',
+#         by_epoch=True,
+#         T_max=12,
+#         begin=4,
+#         end=16,
+#         eta_min_ratio=0.01,
+#         convert_to_iter_based=True)
+# ]
 
 # 2. Use the self-supervised features (VideoMAE2)
 train_pipeline = [
@@ -84,10 +96,10 @@ model = dict(
             norm_cfg=dict(type='GN', num_groups=32),
             num_outs=4)],
     positional_encoding=dict(offset=-0.5),
-    encoder=dict(num_layers=4, layer_cfg=dict(self_attn_cfg=dict(num_levels=4))),
+    encoder=dict(num_layers=4, layer_cfg=dict(self_attn_cfg=dict(num_levels=4)), memory_fuse=False),
     decoder=dict(num_layers=4, layer_cfg=dict(cross_attn_cfg=dict(num_levels=4))),
     bbox_head=dict(type='CustomDINOHead', num_classes=20, sync_cls_avg_factor=True,
-                   loss_cls=dict(type='PositionFocalLoss', use_sigmoid=True, gamma=2.0, alpha=0.25, loss_weight=2.0),  # 2.0
+                   loss_cls=dict(type='FocalLoss', use_sigmoid=True, gamma=2.0, alpha=0.25, loss_weight=2.0),  # 2.0
                    loss_bbox=dict(type='CustomL1Loss', loss_weight=5.0),
                    loss_iou=dict(_delete_=True, type='CustomGIoULoss', loss_weight=2.0)),
     dn_cfg=dict(label_noise_scale=0.5, box_noise_scale=1.0,

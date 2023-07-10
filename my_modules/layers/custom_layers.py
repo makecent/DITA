@@ -123,7 +123,7 @@ class CustomMultiScaleDeformableAttention(MultiScaleDeformableAttention):
 
 class CustomDeformableDetrTransformerEncoder(DeformableDetrTransformerEncoder):
 
-    def __init__(self, memory_fuse=True, *args, **kwargs) -> None:
+    def __init__(self, memory_fuse=False, *args, **kwargs) -> None:
         self.memory_fuse = memory_fuse
         super().__init__(*args, **kwargs)
 
