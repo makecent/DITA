@@ -39,6 +39,7 @@ class CustomDINOHead(DINOHead):
                 nn.init.constant_(m.bias, bias_init)
         for m in self.reg_branches:
             constant_init(m[-1], 0, bias=0)
+        nn.init.constant_(self.reg_branches[0][-1].bias.data[1:], -2.0)
 
     def loss_by_feat_single(self, cls_scores: Tensor, bbox_preds: Tensor,
                             batch_gt_instances: InstanceList,
