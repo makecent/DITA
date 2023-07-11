@@ -37,7 +37,7 @@ class MyTransformerDecoder(DetrTransformerDecoder):
                 **kwargs) -> Tensor:
         intermediate = []
         # intermediate_reference_points = [reference_points]  # DINO add the initial reference_points
-        intermediate_reference_points = []
+        intermediate_reference_points = [reference_points]
         for lid, layer in enumerate(self.layers):
             if reference_points.shape[-1] == 4:
                 reference_points_input = \
@@ -85,7 +85,6 @@ class MyTransformerDecoder(DetrTransformerDecoder):
                 intermediate_reference_points.append(reference_points)
 
         if self.return_intermediate:
-            return torch.stack(intermediate), torch.stack(
-                intermediate_reference_points)
+            return torch.stack(intermediate), intermediate_reference_points
 
         return query, reference_points
