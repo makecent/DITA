@@ -96,7 +96,7 @@ model = dict(
             norm_cfg=dict(type='GN', num_groups=32),
             num_outs=4)],
     positional_encoding=dict(offset=-0.5),
-    encoder=dict(num_layers=4, layer_cfg=dict(self_attn_cfg=dict(num_levels=4)), memory_fuse=False),
+    encoder=dict(num_layers=4, layer_cfg=dict(self_attn_cfg=dict(num_levels=4)), memory_fuse=True),
     decoder=dict(num_layers=4, layer_cfg=dict(cross_attn_cfg=dict(num_levels=4))),
     bbox_head=dict(type='CustomDINOHead', num_classes=20, sync_cls_avg_factor=True,
                    loss_cls=dict(type='FocalLoss', use_sigmoid=True, gamma=2.0, alpha=0.25, loss_weight=2.0),  # 2.0

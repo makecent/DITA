@@ -6,14 +6,14 @@ from mmdet.models.layers import CdnQueryGenerator
 from mmdet.registry import MODELS
 from mmdet.structures import OptSampleList
 from mmdet.utils import OptConfigType
+from mmengine.model import xavier_init
 from torch import Tensor, nn
-from torch.nn.init import normal_, zeros_
+from torch.nn.init import normal_
 
 from my_modules.layers.custom_layers import CustomDeformableDetrTransformerEncoder, CustomDinoTransformerDecoder
 from my_modules.layers.positional_encoding import CustomSinePositionalEncoding
-from my_modules.layers.pseudo_layers import Pseudo2DLinear, Pseudo4DRegLinear
+from my_modules.layers.pseudo_layers import Pseudo4DRegLinear
 from .deformable_detr import DeformableDETR, MultiScaleDeformableAttention
-from mmdet.models.layers import CdnQueryGenerator
 
 
 @MODELS.register_module()
@@ -68,20 +68,20 @@ class CustomDINO(DINO):
 
     def init_weights(self) -> None:
         """Initialize weights for Transformer and other components."""
-        super(DINO, self).init_weights()
-        # for coder in self.encoder, self.decoder:
-        #     for p in coder.parameters():
-        #         if p.dim() > 1:
-        #             nn.init.xavier_uniform_(p)
-        # for m in self.modules():
-        #     if isinstance(m, MultiScaleDeformableAttention):
-        #         m.init_weights()
-        # if self.as_two_stage:
-        #     nn.init.xavier_uniform_(self.memory_trans_fc.weight)
-        #     nn.init.xavier_uniform_(self.query_embedding.weight)
-        # else:
-        #     xavier_init(self.reference_points_fc, distribution='uniform', bias=0)
-        # normal_(self.level_embed)
+        super(DeformableDETR, self).init_weights()
+        for coder in self.encoder, self.decoder:
+            for p in coder.parameters():
+                if p.dim() > 1:
+                    nn.init.xavier_uniform_(p)
+        for m in self.modules():
+            if isinstance(m, MultiScaleDeformableAttention):
+                m.init_weights()
+        if self.as_two_stage:
+            nn.init.xavier_uniform_(self.memory_trans_fc.weight)
+            nn.init.xavier_uniform_(self.query_embedding.weight)
+        else:
+            xavier_init(self.reference_points_fc, distribution='uniform', bias=0)
+        normal_(self.level_embed)
 
     def pre_decoder(
             self,
