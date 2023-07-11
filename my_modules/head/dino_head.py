@@ -213,3 +213,26 @@ class CustomDINOHead(DINOHead):
             loss_cls = torch.zeros(
                 1, dtype=cls_scores.dtype, device=cls_scores.device)
         return loss_cls, loss_bbox, loss_iou
+
+    @staticmethod
+    def split_outputs(all_layers_cls_scores: Tensor,
+                      all_layers_bbox_preds: Tensor,
+                      dn_meta: Dict[str, int]) -> Tuple[Tensor]:
+        if dn_meta is not None:
+            num_denoising_queries = dn_meta['num_denoising_queries']
+            all_layers_denoising_cls_scores = \
+                all_layers_cls_scores[:, :, : num_denoising_queries, :]
+            all_layers_denoising_bbox_preds = \
+                all_layers_bbox_preds[:, :, : num_denoising_queries, :]
+            all_layers_matching_cls_scores = \
+                all_layers_cls_scores[:, :, num_denoising_queries:, :]
+            all_layers_matching_bbox_preds = \
+                all_layers_bbox_preds[:, :, num_denoising_queries:, :]
+        else:
+            all_layers_denoising_cls_scores = None
+            all_layers_denoising_bbox_preds = None
+            all_layers_matching_cls_scores = all_layers_cls_scores
+            all_layers_matching_bbox_preds = all_layers_bbox_preds
+        return (all_layers_matching_cls_scores, all_layers_matching_bbox_preds,
+                all_layers_denoising_cls_scores,
+                all_layers_denoising_bbox_preds)

@@ -27,7 +27,7 @@ class CustomDINO(DINO):
     def __init__(self, *args, dn_cfg: OptConfigType = None, **kwargs) -> None:
         super(DINO, self).__init__(*args, **kwargs)
         assert self.with_box_refine, 'with_box_refine must be True for DINO'
-
+        self.dn_cfg = dn_cfg
         if dn_cfg is not None:
             assert 'num_classes' not in dn_cfg and \
                    'num_queries' not in dn_cfg and \
@@ -38,7 +38,7 @@ class CustomDINO(DINO):
             dn_cfg['num_classes'] = self.bbox_head.num_classes
             dn_cfg['embed_dims'] = self.embed_dims
             dn_cfg['num_matching_queries'] = self.num_queries
-        self.dn_query_generator = CdnQueryGenerator(**dn_cfg)
+            self.dn_query_generator = CdnQueryGenerator(**dn_cfg)
 
     def _init_layers(self) -> None:
         """Initialize layers except for backbone, neck and bbox_head."""
@@ -154,7 +154,7 @@ class CustomDINO(DINO):
             query = self.query_embedding.weight.unsqueeze(0).expand(bs, -1, -1)
             reference_points_unact = self.reference_points_fc(query)
 
-        if self.training:
+        if self.training and (self.dn_cfg is not None):
             dn_label_query, dn_bbox_query, dn_mask, dn_meta = \
                 self.dn_query_generator(batch_data_samples)
             query = torch.cat([dn_label_query, query], dim=1)

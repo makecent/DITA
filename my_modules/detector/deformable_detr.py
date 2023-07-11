@@ -13,6 +13,7 @@ from torch.nn.init import normal_
 
 from mmdet.registry import MODELS
 
+
 @MODELS.register_module()
 class CustomDeformableDETR(DeformableDETR):
     """
@@ -22,24 +23,30 @@ class CustomDeformableDETR(DeformableDETR):
     """
 
     def _init_layers(self) -> None:
-        pos_cfg = self.positional_encoding
-        enc_cfg = self.encoder
-        dec_cfg = self.decoder
-        super()._init_layers()
-        self.encoder = CustomDeformableDetrTransformerEncoder(**enc_cfg)
-        self.decoder = CustomDeformableDetrTransformerDecoder(**dec_cfg)
-        self.positional_encoding = CustomSinePositionalEncoding(
-            **pos_cfg)
-        if not self.as_two_stage:
-            self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1, delta=False)
-        self.query_embedding = nn.Embedding(self.num_queries,
-                                            self.embed_dims * 2)
-        self.pos_trans_fc = nn.Identity()
-        self.pos_trans_norm = nn.Identity()
+        self.encoder = CustomDeformableDetrTransformerEncoder(**self.encoder)
+        self.decoder = CustomDeformableDetrTransformerDecoder(**self.decoder)
+        self.positional_encoding = CustomSinePositionalEncoding(**self.positional_encoding)
+        self.embed_dims = self.encoder.embed_dims
+        num_feats = self.positional_encoding.num_feats
+        assert num_feats * 2 == self.embed_dims, \
+            'embed_dims should be exactly 2 times of num_feats. ' \
+            f'Found {self.embed_dims} and {num_feats}.'
+        self.level_embed = nn.Parameter(
+            torch.Tensor(self.num_feature_levels, self.embed_dims))
 
-        # self.pos_trans_fc = nn.Linear(self.embed_dims,
-        #                               self.embed_dims)
-        # self.pos_trans_norm = nn.LayerNorm(self.embed_dims)
+        if self.as_two_stage:
+            # Our implementation of two-stage only use encoder output as reference point
+            # While the initial object queries are static.
+            self.memory_trans_fc = nn.Linear(self.embed_dims, self.embed_dims)
+            self.memory_trans_norm = nn.LayerNorm(self.embed_dims)
+            # self.pos_trans_fc = nn.Linear(self.embed_dims * 2,
+            #                               self.embed_dims * 2)
+            # self.pos_trans_norm = nn.LayerNorm(self.embed_dims * 2)
+        else:
+            self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1, delta=False)
+        # NOTE The query_embedding will be split into query and query_pos
+        # in self.pre_decoder, hence, the embed_dims are doubled.
+        self.query_embedding = nn.Embedding(self.num_queries, self.embed_dims * 2)
 
     def init_weights(self) -> None:
         """Initialize weights for Transformer and other components."""
@@ -103,7 +110,7 @@ class CustomDeformableDETR(DeformableDETR):
                 output_memory)
             enc_outputs_coord_unact = self.bbox_head.reg_branches[
                                           self.decoder.num_layers](output_memory) + output_proposals
-            enc_outputs_coord = enc_outputs_coord_unact.sigmoid()
+            # enc_outputs_coord = enc_outputs_coord_unact.sigmoid()
             # We only use the first channel in enc_outputs_class as foreground,
             # the other (num_classes - 1) channels are actually not used.
             # Its targets are set to be 0s, which indicates the first
@@ -138,7 +145,7 @@ class CustomDeformableDETR(DeformableDETR):
             query = query.unsqueeze(0).expand(batch_size, -1, -1)
 
         else:
-            enc_outputs_class, enc_outputs_coord = None, None
+            topk_scores, topk_coords = None, None
             query_embed = self.query_embedding.weight
             query_pos, query = torch.split(query_embed, c, dim=1)
             query_pos = query_pos.unsqueeze(0).expand(batch_size, -1, -1)
