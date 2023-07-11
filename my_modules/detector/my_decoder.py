@@ -1,3 +1,5 @@
+import math
+
 import torch
 from mmdet.models.layers import DetrTransformerDecoder
 from mmdet.models.layers.transformer.utils import MLP, coordinate_to_encoding, inverse_sigmoid
@@ -8,8 +10,9 @@ from my_modules.layers import CustomDeformableDetrTransformerDecoderLayer
 
 class MyTransformerDecoder(DetrTransformerDecoder):
     """Transformer encoder of DINO."""
-    def __init__(self, with_dn=False, *args, **kwargs):
-        self.with_dn = with_dn
+
+    def __init__(self, dynamic_pos=False, *args, **kwargs):
+        self.dynamic_pos = dynamic_pos
         super().__init__(*args, **kwargs)
 
     def _init_layers(self) -> None:
@@ -22,7 +25,7 @@ class MyTransformerDecoder(DetrTransformerDecoder):
         if self.post_norm_cfg is not None:
             raise ValueError('There is not post_norm in '
                              f'{self._get_name()}')
-        if self.with_dn:
+        if self.dynamic_pos:
             self.ref_point_head = MLP(self.embed_dims * 2, self.embed_dims,
                                       self.embed_dims, 2)
         # self.norm = nn.LayerNorm(self.embed_dims)
@@ -44,8 +47,9 @@ class MyTransformerDecoder(DetrTransformerDecoder):
                 assert reference_points.shape[-1] == 2
                 reference_points_input = \
                     reference_points[:, :, None] * valid_ratios[:, None]
-            if self.with_dn:
-                query_sine_embed = coordinate_to_encoding(  # DINO compute query_pos based on each layer's referece_points
+            if self.dynamic_pos:
+                query_sine_embed = self.coordinate_to_encoding(
+                    # DINO compute query_pos based on each layer's referece_points
                     reference_points_input[:, :, 0, :])
                 query_pos = self.ref_point_head(query_sine_embed)
 
@@ -85,3 +89,43 @@ class MyTransformerDecoder(DetrTransformerDecoder):
             return torch.stack(intermediate), intermediate_reference_points
 
         return query, reference_points
+
+    @staticmethod
+    def coordinate_to_encoding(coord_tensor: Tensor,
+                               num_feats: int = 256,
+                               temperature: int = 10000,
+                               scale: float = 2 * math.pi):
+        """Convert coordinate tensor to positional encoding.
+        Ignore the y-axis for temporal action detection
+        """
+        dim_t = torch.arange(
+            num_feats, dtype=torch.float32, device=coord_tensor.device)
+        dim_t = temperature ** (2 * (dim_t // 2) / num_feats)
+        x_embed = coord_tensor[..., 0] * scale
+        # y_embed = coord_tensor[..., 1] * scale
+        pos_x = x_embed[..., None] / dim_t
+        # pos_y = y_embed[..., None] / dim_t
+        pos_x = torch.stack((pos_x[..., 0::2].sin(), pos_x[..., 1::2].cos()),
+                            dim=-1).flatten(2)
+        # pos_y = torch.stack((pos_y[..., 0::2].sin(), pos_y[..., 1::2].cos()),
+        #                     dim=-1).flatten(2)
+        if coord_tensor.size(-1) == 2:
+            # pos = torch.cat((pos_y, pos_x), dim=-1)
+            pos = pos_x
+        elif coord_tensor.size(-1) == 4:
+            w_embed = coord_tensor[..., 2] * scale
+            pos_w = w_embed[..., None] / dim_t
+            pos_w = torch.stack((pos_w[..., 0::2].sin(), pos_w[..., 1::2].cos()),
+                                dim=-1).flatten(2)
+
+            # h_embed = coord_tensor[..., 3] * scale
+            # pos_h = h_embed[..., None] / dim_t
+            # pos_h = torch.stack((pos_h[..., 0::2].sin(), pos_h[..., 1::2].cos()),
+            #                     dim=-1).flatten(2)
+
+            # pos = torch.cat((pos_y, pos_x, pos_w, pos_h), dim=-1)
+            pos = torch.cat((pos_x, pos_w), dim=-1)
+        else:
+            raise ValueError('Unknown pos_tensor shape(-1):{}'.format(
+                coord_tensor.size(-1)))
+        return pos

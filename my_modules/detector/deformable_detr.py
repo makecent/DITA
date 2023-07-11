@@ -47,6 +47,7 @@ class MyDeformableDETR(DINO):
         self.num_feature_levels = num_feature_levels
         self.dn_cfg = dn_cfg
         self.with_dn = dn_cfg is not None
+        self.dynamic_pos = False
 
         if bbox_head is not None:
             assert 'share_pred_layer' not in bbox_head and \
@@ -80,7 +81,7 @@ class MyDeformableDETR(DINO):
 
     def _init_layers(self) -> None:
         self.encoder = CustomDeformableDetrTransformerEncoder(**self.encoder)
-        self.decoder = MyTransformerDecoder(with_dn=self.with_dn, **self.decoder)
+        self.decoder = MyTransformerDecoder(dynamic_pos=self.dynamic_pos, **self.decoder)
         self.positional_encoding = CustomSinePositionalEncoding(**self.positional_encoding)
         self.embed_dims = self.encoder.embed_dims
         num_feats = self.positional_encoding.num_feats
@@ -99,13 +100,13 @@ class MyDeformableDETR(DINO):
             #                               self.embed_dims * 2)
             # self.pos_trans_norm = nn.LayerNorm(self.embed_dims * 2)
         else:
-            if self.dn_cfg is not None:
+            if self.with_dn or self.dynamic_pos:
                 self.reference_points_fc = Pseudo4DRegLinear(self.embed_dims, delta=False)
             else:
                 self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1)
         # NOTE The query_embedding will be split into query and query_pos
         # in self.pre_decoder, hence, the embed_dims are doubled.
-        if self.dn_cfg is not None:
+        if self.dynamic_pos:
             self.query_embedding = nn.Embedding(self.num_queries, self.embed_dims)
         else:
             self.query_embedding = nn.Embedding(self.num_queries, self.embed_dims * 2)
@@ -137,7 +138,7 @@ class MyDeformableDETR(DINO):
     ) -> Tuple[Dict]:
         batch_size, _, c = memory.shape
         # Static object queries
-        if self.with_dn:
+        if self.dynamic_pos:
             query = self.query_embedding.weight.unsqueeze(0).expand(batch_size, -1, -1)
             query_pos = None
         else:
@@ -176,7 +177,7 @@ class MyDeformableDETR(DINO):
             # query = query.repeat(1, batch_size, 1).transpose(0, 1)
         else:
             topk_scores, topk_coords = None, None
-            if self.with_dn:
+            if self.dynamic_pos:
                 reference_points_unact = self.reference_points_fc(query)
             else:
                 reference_points_unact = self.reference_points_fc(query_pos)
