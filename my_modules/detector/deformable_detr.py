@@ -188,7 +188,8 @@ class MyDeformableDETR(DINO):
             query = torch.cat([dn_label_query, query], dim=1)
             reference_points_unact = torch.cat([dn_bbox_query, reference_points_unact], dim=1)
             if not self.dynamic_pos:
-                dn_pos = MyTransformerDecoder.coordinate_to_encoding(dn_bbox_query.sigmoid(), num_feats=128)
+                dn_pos = MyTransformerDecoder.coordinate_to_encoding(dn_bbox_query.sigmoid(),
+                                                                     num_feats=self.embed_dims // 2)
                 query_pos = torch.cat([dn_pos, query_pos], dim=1)
         else:
             reference_points_unact = reference_points_unact
