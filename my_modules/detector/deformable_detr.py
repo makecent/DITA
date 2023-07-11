@@ -14,7 +14,7 @@ from torch.nn.init import normal_
 from my_modules.layers.custom_layers import CustomDeformableDetrTransformerEncoder
 from my_modules.detector.my_decoder import MyTransformerDecoder
 from my_modules.layers.positional_encoding import CustomSinePositionalEncoding
-from my_modules.layers.pseudo_layers import Pseudo2DLinear
+from my_modules.layers.pseudo_layers import Pseudo2DLinear, Pseudo4DRegLinear
 
 
 @MODELS.register_module()
@@ -47,18 +47,6 @@ class MyDeformableDETR(DINO):
         self.num_feature_levels = num_feature_levels
         self.dn_cfg = dn_cfg
 
-        if dn_cfg is not None:
-            assert 'num_classes' not in dn_cfg and \
-                   'num_queries' not in dn_cfg and \
-                   'hidden_dim' not in dn_cfg, \
-                'The three keyword args `num_classes`, `embed_dims`, and ' \
-                '`num_matching_queries` are set in `detector.__init__()`, ' \
-                'users should not set them in `dn_cfg` config.'
-            dn_cfg['num_classes'] = self.bbox_head.num_classes
-            dn_cfg['embed_dims'] = self.embed_dims
-            dn_cfg['num_matching_queries'] = self.num_queries
-            self.dn_query_generator = CdnQueryGenerator(**dn_cfg)
-
         if bbox_head is not None:
             assert 'share_pred_layer' not in bbox_head and \
                    'num_pred_layer' not in bbox_head and \
@@ -76,6 +64,18 @@ class MyDeformableDETR(DINO):
             bbox_head['as_two_stage'] = as_two_stage
 
         DetectionTransformer.__init__(self, *args, decoder=decoder, bbox_head=bbox_head, **kwargs)
+
+        if dn_cfg is not None:
+            assert 'num_classes' not in dn_cfg and \
+                   'num_queries' not in dn_cfg and \
+                   'hidden_dim' not in dn_cfg, \
+                'The three keyword args `num_classes`, `embed_dims`, and ' \
+                '`num_matching_queries` are set in `detector.__init__()`, ' \
+                'users should not set them in `dn_cfg` config.'
+            dn_cfg['num_classes'] = self.bbox_head.num_classes
+            dn_cfg['embed_dims'] = self.embed_dims
+            dn_cfg['num_matching_queries'] = self.num_queries
+            self.dn_query_generator = CdnQueryGenerator(**dn_cfg)
 
     def _init_layers(self) -> None:
         self.encoder = CustomDeformableDetrTransformerEncoder(**self.encoder)
@@ -98,7 +98,10 @@ class MyDeformableDETR(DINO):
             #                               self.embed_dims * 2)
             # self.pos_trans_norm = nn.LayerNorm(self.embed_dims * 2)
         else:
-            self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1)
+            if self.dn_cfg is not None:
+                self.reference_points_fc = Pseudo4DRegLinear(self.embed_dims, delta=False)
+            else:
+                self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1)
         # NOTE The query_embedding will be split into query and query_pos
         # in self.pre_decoder, hence, the embed_dims are doubled.
         self.query_embedding = nn.Embedding(self.num_queries, self.embed_dims * 2)

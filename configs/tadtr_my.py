@@ -89,6 +89,8 @@ model = dict(
             loss_weight=cls_loss_coef),
         loss_bbox=dict(type='CustomL1Loss', loss_weight=seg_loss_coef),
         loss_iou=dict(type='CustomGIoULoss', loss_weight=iou_loss_coef)),
+    dn_cfg=dict(label_noise_scale=0.5, box_noise_scale=1.0,
+                group_cfg=dict(dynamic=True, num_groups=None, num_dn_queries=100)),
     train_cfg=dict(
         assigner=dict(
             type='HungarianAssigner',
