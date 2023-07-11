@@ -32,7 +32,7 @@ class Thumos14FeatDataset(BaseDetDataset):
                  skip_wrong=False,  # skip videos that are wrong annotated
                  fix_slice=True,
                  # whether slice the feature to windows in advance with fixed stride, or slice randomly.
-                 on_the_fly=True,  # whether slice the feature on the fly and pre-slice.
+                 on_the_fly=False,  # whether slice the feature on the fly and pre-slice.
                  tadtr_style=True,  # whether slice the feature in a TadTR style.
                  iof_thr=0.75,  # The Intersection over Foreground (IoF) threshold used to filter sliding windows.
                  window_size=None,  # the window size of sliding window.

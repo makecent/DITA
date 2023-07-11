@@ -2,6 +2,7 @@ from typing import Dict, Tuple
 
 import torch
 from mmdet.models.detectors import DINO
+from mmdet.models.detectors.deformable_detr import DeformableDETR, MultiScaleDeformableAttention
 from mmdet.models.layers import CdnQueryGenerator
 from mmdet.registry import MODELS
 from mmdet.structures import OptSampleList
@@ -13,7 +14,6 @@ from torch.nn.init import normal_
 from my_modules.layers.custom_layers import CustomDeformableDetrTransformerEncoder, CustomDinoTransformerDecoder
 from my_modules.layers.positional_encoding import CustomSinePositionalEncoding
 from my_modules.layers.pseudo_layers import Pseudo4DRegLinear
-from .deformable_detr import DeformableDETR, MultiScaleDeformableAttention
 
 
 @MODELS.register_module()

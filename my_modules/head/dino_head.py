@@ -20,7 +20,8 @@ class CustomDINOHead(DINOHead):
     1. We modify the regression branches to remove the unused FC nodes (x1, y1, x2, y2) -> (x1, x2).
     Note that this modification is optional since we have already modified the loss functions to
     make sure that the y1, y2 will not contribute to the loss and cost. See my_modules/loss/custom_loss.py
-    2. The original head doesn't have a correct loss_and_predict() function, we add it.
+    2. Modify the loss function to support Position-supervised Focal Loss (Stable-DINO)
+    3. Correct the split_outputs, now support turning off the de-noising branch.
     """
 
     def _init_layers(self) -> None:
