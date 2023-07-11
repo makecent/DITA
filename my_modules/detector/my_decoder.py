@@ -25,7 +25,7 @@ class MyTransformerDecoder(DetrTransformerDecoder):
         if self.with_dn:
             self.ref_point_head = MLP(self.embed_dims * 2, self.embed_dims,
                                       self.embed_dims, 2)
-            self.norm = nn.LayerNorm(self.embed_dims)
+        # self.norm = nn.LayerNorm(self.embed_dims)
 
     def forward(self, query: Tensor, query_pos: Tensor, value: Tensor, key_padding_mask: Tensor,
                 self_attn_mask: Tensor, reference_points: Tensor,
