@@ -1,19 +1,16 @@
-import warnings
-from typing import Tuple, Union
-
 import torch
-from mmengine.model import BaseModule
+from mmdet.models.layers import DetrTransformerDecoder
+from mmdet.models.layers.transformer.utils import MLP, coordinate_to_encoding, inverse_sigmoid
 from torch import Tensor, nn
 
-from mmdet.structures import SampleList
-from mmdet.structures.bbox import bbox_xyxy_to_cxcywh
-from mmdet.utils import OptConfigType
-from mmdet.models.layers import DetrTransformerDecoder
 from my_modules.layers import CustomDeformableDetrTransformerDecoderLayer
-from mmdet.models.layers.transformer.utils import inverse_sigmoid
+
 
 class MyTransformerDecoder(DetrTransformerDecoder):
     """Transformer encoder of DINO."""
+    def __init__(self, with_dn=False, *args, **kwargs):
+        self.with_dn = with_dn
+        super().__init__(*args, **kwargs)
 
     def _init_layers(self) -> None:
         """Initialize decoder layers."""
@@ -25,10 +22,10 @@ class MyTransformerDecoder(DetrTransformerDecoder):
         if self.post_norm_cfg is not None:
             raise ValueError('There is not post_norm in '
                              f'{self._get_name()}')
-        # self.ref_point_head = MLP(self.embed_dims * 2, self.embed_dims,
-        #                           self.embed_dims, 2)
-        # self.norm = nn.LayerNorm(self.embed_dims)
-
+        if self.with_dn:
+            self.ref_point_head = MLP(self.embed_dims * 2, self.embed_dims,
+                                      self.embed_dims, 2)
+            self.norm = nn.LayerNorm(self.embed_dims)
 
     def forward(self, query: Tensor, query_pos: Tensor, value: Tensor, key_padding_mask: Tensor,
                 self_attn_mask: Tensor, reference_points: Tensor,
@@ -47,10 +44,10 @@ class MyTransformerDecoder(DetrTransformerDecoder):
                 assert reference_points.shape[-1] == 2
                 reference_points_input = \
                     reference_points[:, :, None] * valid_ratios[:, None]
-
-            # query_sine_embed = coordinate_to_encoding(  # DINO compute query_pos based on each layer's referece_points
-            #     reference_points_input[:, :, 0, :])
-            # query_pos = self.ref_point_head(query_sine_embed)
+            if self.with_dn:
+                query_sine_embed = coordinate_to_encoding(  # DINO compute query_pos based on each layer's referece_points
+                    reference_points_input[:, :, 0, :])
+                query_pos = self.ref_point_head(query_sine_embed)
 
             query = layer(
                 query,
@@ -67,7 +64,7 @@ class MyTransformerDecoder(DetrTransformerDecoder):
             if reg_branches is not None:
                 tmp = reg_branches[lid](query)
                 if reference_points.shape[-1] == 4:
-                    new_reference_points = tmp + inverse_sigmoid(reference_points, eps=1e-5)    # DINO use eps=1e-3
+                    new_reference_points = tmp + inverse_sigmoid(reference_points, eps=1e-5)  # DINO use eps=1e-3
                     new_reference_points = new_reference_points.sigmoid()
                 else:
                     assert reference_points.shape[-1] == 2
@@ -78,7 +75,7 @@ class MyTransformerDecoder(DetrTransformerDecoder):
 
             if self.return_intermediate:
                 # intermediate.append(self.norm(query))   # DINO add apply LayerNorm on each intermediate output
-                intermediate.append(query)   # DINO add apply LayerNorm on each intermediate output
+                intermediate.append(query)  # DINO add apply LayerNorm on each intermediate output
                 # intermediate_reference_points.append(new_reference_points)    # DINO add the reference un-detached
                 # NOTE this is for the "Look Forward Twice" module,
                 # in the DeformDETR, reference_points was appended.

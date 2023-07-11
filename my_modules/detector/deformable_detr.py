@@ -46,6 +46,7 @@ class MyDeformableDETR(DINO):
         self.as_two_stage = as_two_stage
         self.num_feature_levels = num_feature_levels
         self.dn_cfg = dn_cfg
+        self.with_dn = dn_cfg is not None
 
         if bbox_head is not None:
             assert 'share_pred_layer' not in bbox_head and \
@@ -79,7 +80,7 @@ class MyDeformableDETR(DINO):
 
     def _init_layers(self) -> None:
         self.encoder = CustomDeformableDetrTransformerEncoder(**self.encoder)
-        self.decoder = MyTransformerDecoder(**self.decoder)
+        self.decoder = MyTransformerDecoder(with_dn=self.with_dn, **self.decoder)
         self.positional_encoding = CustomSinePositionalEncoding(**self.positional_encoding)
         self.embed_dims = self.encoder.embed_dims
         num_feats = self.positional_encoding.num_feats
@@ -104,7 +105,10 @@ class MyDeformableDETR(DINO):
                 self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1)
         # NOTE The query_embedding will be split into query and query_pos
         # in self.pre_decoder, hence, the embed_dims are doubled.
-        self.query_embedding = nn.Embedding(self.num_queries, self.embed_dims * 2)
+        if self.dn_cfg is not None:
+            self.query_embedding = nn.Embedding(self.num_queries, self.embed_dims)
+        else:
+            self.query_embedding = nn.Embedding(self.num_queries, self.embed_dims * 2)
 
     def init_weights(self) -> None:
         """Initialize weights for Transformer and other components."""
@@ -133,10 +137,15 @@ class MyDeformableDETR(DINO):
     ) -> Tuple[Dict]:
         batch_size, _, c = memory.shape
         # Static object queries
-        query_embed = self.query_embedding.weight
-        query_pos, query = torch.split(query_embed, c, dim=1)
-        query_pos = query_pos.unsqueeze(0).expand(batch_size, -1, -1)
-        query = query.unsqueeze(0).expand(batch_size, -1, -1)
+        if self.with_dn:
+            query = self.query_embedding.weight.unsqueeze(0).expand(batch_size, -1, -1)
+            query_pos = None
+        else:
+            query_embed = self.query_embedding.weight
+            query_pos, query = torch.split(query_embed, c, dim=1)
+            query_pos = query_pos.unsqueeze(0).expand(batch_size, -1, -1)
+            query = query.unsqueeze(0).expand(batch_size, -1, -1)
+
         if self.as_two_stage:
             output_memory, output_proposals = \
                 self.gen_encoder_output_proposals(
@@ -167,7 +176,10 @@ class MyDeformableDETR(DINO):
             # query = query.repeat(1, batch_size, 1).transpose(0, 1)
         else:
             topk_scores, topk_coords = None, None
-            reference_points_unact = self.reference_points_fc(query_pos)
+            if self.with_dn:
+                reference_points_unact = self.reference_points_fc(query)
+            else:
+                reference_points_unact = self.reference_points_fc(query_pos)
 
         if self.training and (self.dn_cfg is not None):
             dn_label_query, dn_bbox_query, dn_mask, dn_meta = \
