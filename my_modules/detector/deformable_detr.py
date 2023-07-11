@@ -98,7 +98,7 @@ class MyDeformableDETR(DINO):
             #                               self.embed_dims * 2)
             # self.pos_trans_norm = nn.LayerNorm(self.embed_dims * 2)
         else:
-            self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1, delta=False)
+            self.reference_points_fc = Pseudo2DLinear(self.embed_dims, 1)
         # NOTE The query_embedding will be split into query and query_pos
         # in self.pre_decoder, hence, the embed_dims are doubled.
         self.query_embedding = nn.Embedding(self.num_queries, self.embed_dims * 2)

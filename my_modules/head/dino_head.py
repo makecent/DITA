@@ -7,6 +7,7 @@ from mmdet.registry import MODELS
 from mmdet.structures.bbox import bbox_cxcywh_to_xyxy
 from mmdet.structures.bbox import bbox_overlaps
 from mmdet.utils import InstanceList, reduce_mean
+from mmengine.model import bias_init_with_prob, constant_init
 from torch import Tensor
 
 from my_modules.layers.pseudo_layers import Pseudo4DRegLinear
@@ -31,11 +32,13 @@ class CustomDINOHead(DINOHead):
             reg_branch[-1] = Pseudo4DRegLinear(self.embed_dims)
 
     def init_weights(self) -> None:
-        super().init_weights()
-        nn.init.constant_(self.reg_branches[0][-1].bias.data[1:], -2.0)  # [2:] -> [1:]
-        if self.as_two_stage:
-            for m in self.reg_branches:
-                nn.init.constant_(m[-1].bias.data[1:], 0.0)  # [2:] -> [1:]
+        """Initialize weights of the Deformable DETR head."""
+        if self.loss_cls.use_sigmoid:
+            bias_init = bias_init_with_prob(0.01)
+            for m in self.cls_branches:
+                nn.init.constant_(m.bias, bias_init)
+        for m in self.reg_branches:
+            constant_init(m[-1], 0, bias=0)
 
     def loss_by_feat_single(self, cls_scores: Tensor, bbox_preds: Tensor,
                             batch_gt_instances: InstanceList,

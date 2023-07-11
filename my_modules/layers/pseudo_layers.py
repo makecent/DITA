@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-
+from mmdet.models.layers.transformer.utils import inverse_sigmoid
 
 class Pseudo4DRegLinear(nn.Linear):
     """
@@ -33,16 +33,16 @@ class Pseudo4DRegLinear(nn.Linear):
                 cy = torch.full_like(x[..., :1], 0.)
                 h = torch.full_like(x[..., :1], 0.)
             else:   # DETR
-                cy = torch.full_like(x[..., :1], 0.5)
-                h = torch.full_like(x[..., :1], 0.8)
+                cy = torch.full_like(x[..., :1], 0.)    # equal to 0.5 after sigmoid
+                h = torch.full_like(x[..., :1], 1.3863)    # close to 0.8 after sigmoid
             x = torch.cat((x[..., :1], cy, x[..., 1:], h), dim=-1)
         else:
             if self.delta:  # DeformableDETR
                 y1 = torch.full_like(x[..., :1], 0.)
                 y2 = torch.full_like(x[..., :1], 0.)
             else:   # DETR
-                y1 = torch.full_like(x[..., :1], 0.1)
-                y2 = torch.full_like(x[..., :1], 0.9)
+                y1 = torch.full_like(x[..., :1], -2.1972)   # close to 0.1 after sigmoid
+                y2 = torch.full_like(x[..., :1], 2.1972)    # close to 0.9 after sigmoid
             x = torch.cat((x[..., :1], y1, x[..., 1:], y2), dim=-1)
         return x
 
@@ -60,20 +60,16 @@ class Pseudo2DLinear(nn.Linear):
     to 1D without compatibility problem.
     """
 
-    def __init__(self, in_dim, out_dim, delta=True, **kwargs):
-        super().__init__(in_dim, out_dim, **kwargs)
-        self.delta = delta
-
     def forward(self, x: torch.Tensor):
         x = super().forward(x)
 
         # Interleave the output values with zeros (the offsets on y-axis)
         reshaped_output = x.view(-1, 1)
-        if self.delta:  # sampling-offset
-            delta_y = torch.zeros_like(reshaped_output)
-            interleaved_output = torch.cat((reshaped_output, delta_y), dim=1)
-        else:   # reference-point
-            y = torch.ones_like(reshaped_output) * 0.5
-            interleaved_output = torch.cat((reshaped_output, y), dim=1)
+        y = torch.zeros_like(reshaped_output)
+        interleaved_output = torch.cat((reshaped_output, y), dim=1)
+        # when applied for sampling-offset, since no sigmoid will be applied, the sampling offset on y-axis
+        # will always be zeros, which is expected.
+        # when applied for initial reference-point, since sigmoid will be applied, the reference-point on y-axis
+        # will always be 0.5, which is also expected.
         x = interleaved_output.view(*x.shape[:-1], x.shape[-1]*2)
         return x
