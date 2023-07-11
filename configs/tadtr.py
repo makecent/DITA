@@ -1,5 +1,5 @@
 _base_ = [
-    './thumos14.py'
+    'default_runtime.py', './thumos14.py'
 ]
 custom_imports = dict(imports=['my_modules'], allow_failed_imports=False)
 
@@ -19,7 +19,7 @@ lr = 0.0002  # 1e-4, 2e-4
 
 # model setting
 model = dict(
-    type='CustomDeformableDETR',
+    type='TadTR',
     num_queries=40,  # num_matching_queries, should be smaller than the window size
     with_box_refine=True,
     as_two_stage=False,  # True for DeformableDETR
@@ -67,7 +67,7 @@ model = dict(
     # offset=-0.5 for DeformableDETR; the real num_feats is 128*2=256, 128 is just for the compatibility.
     positional_encoding=dict(num_feats=128, normalize=True, offset=0, temperature=10000),
     bbox_head=dict(
-        type='CustomDeformableDETRHead',
+        type='TadTRHead',
         num_classes=20,
         sync_cls_avg_factor=True,
         loss_cls=dict(
@@ -123,33 +123,4 @@ param_scheduler = [
         gamma=0.1),
 ]
 
-# NOTE: `auto_scale_lr` is for automatically scaling LR,
-# USER SHOULD NOT CHANGE ITS VALUES.
-# base_batch_size = (8 GPUs) x (2 samples per GPU)
-auto_scale_lr = dict(base_batch_size=16)
 
-default_scope = 'mmdet'
-default_hooks = dict(
-    timer=dict(type='IterTimerHook'),
-    logger=dict(type='LoggerHook', interval=10, log_metric_by_epoch=True),
-    param_scheduler=dict(type='ParamSchedulerHook'),
-    checkpoint=dict(type='CheckpointHook', interval=10),
-    sampler_seed=dict(type='DistSamplerSeedHook'),
-    visualization=dict(type='DetVisualizationHook'))
-
-env_cfg = dict(
-    cudnn_benchmark=False,
-    mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),
-    dist_cfg=dict(backend='nccl'),
-)
-
-vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend'),
-                dict(type='WandbVisBackend', init_kwargs=dict(project='TAD_DINO'), define_metric_cfg={'pascal_voc/mAP': 'max'})]
-# vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
-visualizer = dict(
-    type='DetLocalVisualizer', vis_backends=vis_backends, name='visualizer')
-log_processor = dict(type='LogProcessor', window_size=50, by_epoch=True)
-
-log_level = 'INFO'
-load_from = None
-resume = False
