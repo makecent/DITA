@@ -186,8 +186,10 @@ class MyDeformableDETR(DINO):
             dn_label_query, dn_bbox_query, dn_mask, dn_meta = \
                 self.dn_query_generator(batch_data_samples)
             query = torch.cat([dn_label_query, query], dim=1)
-            reference_points_unact = torch.cat([dn_bbox_query, reference_points_unact],
-                                               dim=1)
+            reference_points_unact = torch.cat([dn_bbox_query, reference_points_unact], dim=1)
+            if not self.dynamic_pos:
+                dn_pos = MyTransformerDecoder.coordinate_to_encoding(dn_bbox_query.sigmoid(), num_feats=128)
+                query_pos = torch.cat([dn_pos, query_pos], dim=1)
         else:
             reference_points_unact = reference_points_unact
             dn_mask, dn_meta = None, None
