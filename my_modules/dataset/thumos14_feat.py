@@ -145,6 +145,17 @@ class Thumos14FeatDataset(BaseDetDataset):
 
                     data_list.append(deepcopy(data_info))
         print_log(f"number of feature windows:\t {len(data_list)}", logger=MMLogger.get_current_instance())
+        # if self.test_mode:
+        #     segments = []
+        #     for i in data_list:
+        #         segments.append(i['segments'][:, 1] - i['segments'][:, 0])
+        #
+        #     seg_len = np.concatenate(segments)
+        #     from mmengine import dump
+        #     dump(seg_len, 'test_seg_len.pkl')
+        # else:
+        #     pass
+        #     # dump(seg_len, 'train_seg_len.pkl')
         return data_list
 
     def parse_labels(self, video_name, video_info):
