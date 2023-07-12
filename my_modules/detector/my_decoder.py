@@ -80,10 +80,10 @@ class MyTransformerDecoder(DetrTransformerDecoder):
             if self.return_intermediate:
                 # intermediate.append(self.norm(query))   # DINO add apply LayerNorm on each intermediate output
                 intermediate.append(query)  # DINO add apply LayerNorm on each intermediate output
-                # intermediate_reference_points.append(new_reference_points)    # DINO add the reference un-detached
+                intermediate_reference_points.append(new_reference_points)    # DINO add the reference un-detached
                 # NOTE this is for the "Look Forward Twice" module,
                 # in the DeformDETR, reference_points was appended.
-                intermediate_reference_points.append(reference_points)
+                # intermediate_reference_points.append(reference_points)
 
         if self.return_intermediate:
             return torch.stack(intermediate), intermediate_reference_points
