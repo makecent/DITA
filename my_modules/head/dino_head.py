@@ -299,8 +299,6 @@ class CustomDINOHead(DINOHead):
                       dn_meta: Dict[str, int]) -> Tuple[Tensor]:
         if dn_meta is not None:
             num_denoising_queries = dn_meta['num_denoising_queries']
-            if num_denoising_queries != 200:
-                print('haha')
             if isinstance(all_layers_cls_scores, list): # when SQR applied, the number of queries in layers are different
                 num_queries = all_layers_cls_scores[0].shape[1]
                 all_layers_denoising_cls_scores = []
