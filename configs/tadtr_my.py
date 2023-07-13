@@ -23,7 +23,7 @@ lr = 0.0001
 # model setting
 model = dict(
     type='MyDeformableDETR',
-    num_queries=2200,
+    num_queries=200,
     with_box_refine=True,
     as_two_stage=False,
     num_feature_levels=4,

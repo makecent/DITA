@@ -146,9 +146,6 @@ class MyDeformableDETR(DINO):
             query_pos, query = torch.split(query_embed, c, dim=1)
             query_pos = query_pos.unsqueeze(0).expand(batch_size, -1, -1)
             query = query.unsqueeze(0).expand(batch_size, -1, -1)
-            if not self.training:
-                query = query[:, :200, :]
-                query_pos = query_pos[:, :200, :]
 
         if self.as_two_stage:
             output_memory, output_proposals = \
