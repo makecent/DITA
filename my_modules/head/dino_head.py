@@ -3,10 +3,12 @@ from typing import Dict, List, Tuple
 import torch
 import torch.nn as nn
 from mmdet.models.dense_heads import DINOHead
+from mmdet.models.layers import inverse_sigmoid
 from mmdet.registry import MODELS
 from mmdet.structures.bbox import bbox_cxcywh_to_xyxy
 from mmdet.structures.bbox import bbox_overlaps
-from mmdet.utils import InstanceList, reduce_mean
+from mmdet.utils import InstanceList
+from mmdet.utils import reduce_mean
 from mmengine.model import bias_init_with_prob, constant_init
 from torch import Tensor
 
@@ -40,6 +42,62 @@ class CustomDINOHead(DINOHead):
         for m in self.reg_branches:
             constant_init(m[-1], 0, bias=0)
         nn.init.constant_(self.reg_branches[0][-1].bias.data[1:], -2.0)
+
+    def forward(self, hidden_states: Tensor,
+                references: List[Tensor]) -> Tuple[Tensor]:
+        """Forward function.
+
+        Args:
+            hidden_states (Tensor): Hidden states output from each decoder
+                layer, has shape (num_decoder_layers, bs, num_queries, dim).
+            references (list[Tensor]): List of the reference from the decoder.
+                The first reference is the `init_reference` (initial) and the
+                other num_decoder_layers(6) references are `inter_references`
+                (intermediate). The `init_reference` has shape (bs,
+                num_queries, 4) when `as_two_stage` of the detector is `True`,
+                otherwise (bs, num_queries, 2). Each `inter_reference` has
+                shape (bs, num_queries, 4) when `with_box_refine` of the
+                detector is `True`, otherwise (bs, num_queries, 2). The
+                coordinates are arranged as (cx, cy) when the last dimension is
+                2, and (cx, cy, w, h) when it is 4.
+
+        Returns:
+            tuple[Tensor]: results of head containing the following tensor.
+
+            - all_layers_outputs_classes (Tensor): Outputs from the
+              classification head, has shape (num_decoder_layers, bs,
+              num_queries, cls_out_channels).
+            - all_layers_outputs_coords (Tensor): Sigmoid outputs from the
+              regression head with normalized coordinate format (cx, cy, w,
+              h), has shape (num_decoder_layers, bs, num_queries, 4) with the
+              last dimension arranged as (cx, cy, w, h).
+        """
+        # TODO: directly use the reference points of nex layer as output_coord?
+        all_layers_outputs_classes = []
+        all_layers_outputs_coords = []
+
+        for layer_id in range(len(hidden_states)):
+            reference = inverse_sigmoid(references[layer_id])
+            # NOTE The last reference will not be used.
+            hidden_state = hidden_states[layer_id]
+            outputs_class = self.cls_branches[layer_id](hidden_state)
+            tmp_reg_preds = self.reg_branches[layer_id](hidden_state)
+            if reference.shape[-1] == 4:
+                # When `layer` is 0 and `as_two_stage` of the detector
+                # is `True`, or when `layer` is greater than 0 and
+                # `with_box_refine` of the detector is `True`.
+                tmp_reg_preds += reference
+            else:
+                # When `layer` is 0 and `as_two_stage` of the detector
+                # is `False`, or when `layer` is greater than 0 and
+                # `with_box_refine` of the detector is `False`.
+                assert reference.shape[-1] == 2
+                tmp_reg_preds[..., :2] += reference
+            outputs_coord = tmp_reg_preds.sigmoid()
+            all_layers_outputs_classes.append(outputs_class)
+            all_layers_outputs_coords.append(outputs_coord)
+
+        return all_layers_outputs_classes, all_layers_outputs_coords
 
     def loss_by_feat_single(self, cls_scores: Tensor, bbox_preds: Tensor,
                             batch_gt_instances: InstanceList,
@@ -159,10 +217,26 @@ class CustomDINOHead(DINOHead):
                                               batch_img_metas, dn_meta)
         (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
          num_total_pos, num_total_neg) = cls_reg_targets
+
+        num_preds, num_targets = dn_bbox_preds.shape[1], dn_meta['num_denoising_queries']
+        if num_targets < num_preds:  # When SQR applied, dn queries are recollected from layers.
+            assert num_preds % num_targets == 0
+            repeats = num_preds // num_targets
+            labels_list = [x.repeat(repeats) for x in labels_list]
+            label_weights_list = [x.repeat(repeats) for x in label_weights_list]
+            bbox_targets_list = [x.repeat(repeats, 1) for x in bbox_targets_list]
+            bbox_weights_list = [x.repeat(repeats, 1) for x in bbox_weights_list]
+            num_total_pos *= repeats
+            num_total_neg *= repeats
+
+
         labels = torch.cat(labels_list, 0)
         label_weights = torch.cat(label_weights_list, 0)
         bbox_targets = torch.cat(bbox_targets_list, 0)
         bbox_weights = torch.cat(bbox_weights_list, 0)
+
+
+
 
         # classification loss
         cls_scores = dn_cls_scores.reshape(-1, self.cls_out_channels)
@@ -225,14 +299,36 @@ class CustomDINOHead(DINOHead):
                       dn_meta: Dict[str, int]) -> Tuple[Tensor]:
         if dn_meta is not None:
             num_denoising_queries = dn_meta['num_denoising_queries']
-            all_layers_denoising_cls_scores = \
-                all_layers_cls_scores[:, :, : num_denoising_queries, :]
-            all_layers_denoising_bbox_preds = \
-                all_layers_bbox_preds[:, :, : num_denoising_queries, :]
-            all_layers_matching_cls_scores = \
-                all_layers_cls_scores[:, :, num_denoising_queries:, :]
-            all_layers_matching_bbox_preds = \
-                all_layers_bbox_preds[:, :, num_denoising_queries:, :]
+            if num_denoising_queries != 200:
+                print('haha')
+            if isinstance(all_layers_cls_scores, list): # when SQR applied, the number of queries in layers are different
+                num_queries = all_layers_cls_scores[0].shape[1]
+                all_layers_denoising_cls_scores = []
+                all_layers_matching_cls_scores = []
+                all_layers_denoising_bbox_preds = []
+                all_layers_matching_bbox_preds = []
+                for lid in range(len(all_layers_cls_scores)):
+                    layer_score = all_layers_cls_scores[lid]
+                    layer_bbox = all_layers_bbox_preds[lid]
+                    layer_score_recollection = torch.split(layer_score, num_queries, dim=1)
+                    layer_bbox_recollection = torch.split(layer_bbox, num_queries, dim=1)
+                    layer_denosing_score = [collection[:, :num_denoising_queries, :] for collection in layer_score_recollection]
+                    layer_matching_score = [collection[:, num_denoising_queries:, :] for collection in layer_score_recollection]
+                    layer_denosing_bbox = [collection[:, :num_denoising_queries, :] for collection in layer_bbox_recollection]
+                    layer_matching_bbox = [collection[:, num_denoising_queries:, :] for collection in layer_bbox_recollection]
+                    all_layers_denoising_cls_scores.append(torch.cat(layer_denosing_score, dim=1))
+                    all_layers_matching_cls_scores.append(torch.cat(layer_matching_score, dim=1))
+                    all_layers_denoising_bbox_preds.append(torch.cat(layer_denosing_bbox, dim=1))
+                    all_layers_matching_bbox_preds.append(torch.cat(layer_matching_bbox, dim=1))
+            else:
+                all_layers_denoising_cls_scores = \
+                    all_layers_cls_scores[:, :, : num_denoising_queries, :]
+                all_layers_denoising_bbox_preds = \
+                    all_layers_bbox_preds[:, :, : num_denoising_queries, :]
+                all_layers_matching_cls_scores = \
+                    all_layers_cls_scores[:, :, num_denoising_queries:, :]
+                all_layers_matching_bbox_preds = \
+                    all_layers_bbox_preds[:, :, num_denoising_queries:, :]
         else:
             all_layers_denoising_cls_scores = None
             all_layers_denoising_bbox_preds = None

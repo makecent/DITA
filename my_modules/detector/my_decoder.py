@@ -36,7 +36,6 @@ class MyTransformerDecoder(DetrTransformerDecoder):
                 valid_ratios: Tensor, reg_branches: nn.ModuleList,
                 **kwargs) -> Tensor:
         intermediate = []
-        # intermediate_reference_points = [reference_points]  # DINO add the initial reference_points
         intermediate_reference_points = [reference_points]
         for lid, layer in enumerate(self.layers):
             if reference_points.shape[-1] == 4:
@@ -53,6 +52,8 @@ class MyTransformerDecoder(DetrTransformerDecoder):
                     reference_points_input[:, :, 0, :])
                 query_pos = self.ref_point_head(query_sine_embed)
 
+            pre_query = query
+            num_queries = query.shape[1]
             query = layer(
                 query,
                 query_pos=query_pos,
@@ -75,18 +76,36 @@ class MyTransformerDecoder(DetrTransformerDecoder):
                     new_reference_points = tmp
                     new_reference_points[..., :2] = tmp[..., :2] + inverse_sigmoid(reference_points, eps=1e-5)
                     new_reference_points = new_reference_points.sigmoid()
-                reference_points = new_reference_points.detach()
 
             if self.return_intermediate:
                 # intermediate.append(self.norm(query))   # DINO add apply LayerNorm on each intermediate output
-                intermediate.append(query)  # DINO add apply LayerNorm on each intermediate output
-                intermediate_reference_points.append(new_reference_points)    # DINO add the reference un-detached
-                # NOTE this is for the "Look Forward Twice" module,
-                # in the DeformDETR, reference_points was appended.
+                intermediate.append(query)
+
+            # Query Recollection
+            if self.training:
+                # Dense Query Recollection
+                query_rec = torch.cat([query, pre_query], dim=1)
+                # make sure the concatenated queries don't affect each other
+                num_queries_rec = query_rec.shape[1]
+                new_self_attn_mask = torch.ones(num_queries_rec, num_queries_rec, device=query.device, dtype=torch.bool)
+                new_self_attn_mask[:num_queries, :num_queries] = self_attn_mask
+                new_self_attn_mask[num_queries:, num_queries:] = self_attn_mask
+                # # Selective Query Recollection
+                # query = torch.cat([query, pre_query[:-batch_size]], dim=0)
+                # Update variables
+                self_attn_mask = new_self_attn_mask
+                query = query_rec
+                if not self.dynamic_pos:
+                    query_pos = torch.cat([query_pos, query_pos], dim=1)
+
+            if self.return_intermediate:
+                new_reference_points = torch.cat([new_reference_points, new_reference_points], dim=1)
+                reference_points = new_reference_points.detach()
+                intermediate_reference_points.append(new_reference_points)    # DINO look forward twice
                 # intermediate_reference_points.append(reference_points)
 
         if self.return_intermediate:
-            return torch.stack(intermediate), intermediate_reference_points
+            return intermediate, intermediate_reference_points
 
         return query, reference_points
 
