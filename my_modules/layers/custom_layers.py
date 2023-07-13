@@ -436,75 +436,64 @@ class CustomDeformableDetrTransformerDecoderLayer(DeformableDetrTransformerDecod
         ]
         self.norms = ModuleList(norms_list)
 
-    # # Below for Group DETR, we find it not improve performance
-    # def forward(self,
-    #             query: Tensor,
-    #             key: Tensor = None,
-    #             value: Tensor = None,
-    #             query_pos: Tensor = None,
-    #             key_pos: Tensor = None,
-    #             self_attn_mask: Tensor = None,
-    #             cross_attn_mask: Tensor = None,
-    #             key_padding_mask: Tensor = None,
-    #             **kwargs) -> Tensor:
-    #     if self.training:
-    #         num_queries = 2200
-    #         num_groups = 11
-    #         query_pos_back = query_pos
-    #         query_, query_pos_ = query[:, -num_queries:, :], query_pos[:, -num_queries:, :]
-    #         dn_query, dn_query_pos = query[:, :-num_queries, :], query_pos[:, :-num_queries, :]
-    #         query_groups = torch.split(query_, num_queries//num_groups, dim=1)
-    #         query_pos_groups = torch.split(query_pos_, num_queries//num_groups, dim=1)
-    #         querys_ = []
-    #         for i in range(num_groups):
-    #             query = query_groups[i]
-    #             query_pos = query_pos_groups[i]
-    #             query = self.self_attn(
-    #                 query=query,
-    #                 key=query,
-    #                 value=query,
-    #                 query_pos=query_pos,
-    #                 key_pos=query_pos,
-    #                 # attn_mask=self_attn_mask,
-    #                 **kwargs)
-    #             querys_.append(query)
-    #         query = dn_query
-    #         query_pos = dn_query_pos
-    #         dn_query = self.self_attn(
-    #             query=query,
-    #             key=query,
-    #             value=query,
-    #             query_pos=query_pos,
-    #             key_pos=query_pos,
-    #             # attn_mask=self_attn_mask,
-    #             **kwargs)
-    #         query = torch.cat([dn_query] + querys_, dim=1)
-    #         query_pos = query_pos_back
-    #     else:
-    #         query = self.self_attn(
-    #             query=query,
-    #             key=query,
-    #             value=query,
-    #             query_pos=query_pos,
-    #             key_pos=query_pos,
-    #             attn_mask=self_attn_mask,
-    #             **kwargs)
-    #
-    #     query = self.norms[0](query)
-    #     query = self.cross_attn(
-    #         query=query,
-    #         key=key,
-    #         value=value,
-    #         query_pos=query_pos,
-    #         key_pos=key_pos,
-    #         attn_mask=cross_attn_mask,
-    #         key_padding_mask=key_padding_mask,
-    #         **kwargs)
-    #     query = self.norms[1](query)
-    #     query = self.ffn(query)
-    #     query = self.norms[2](query)
-    #
-    #     return query
+    def forward(self,
+                query: Tensor,
+                key: Tensor = None,
+                value: Tensor = None,
+                query_pos: Tensor = None,
+                key_pos: Tensor = None,
+                self_attn_mask: Tensor = None,
+                cross_attn_mask: Tensor = None,
+                key_padding_mask: Tensor = None,
+                **kwargs) -> Tensor:
+        num_queries = 2200
+        num_groups = 11
+        query_pos_back = query_pos
+        query_, query_pos_ = query[:, -num_queries:, :], query_pos[:, -num_queries:, :]
+        dn_query, dn_query_pos = query[:, :-num_queries, :], query_pos[:, :-num_queries, :]
+        query_groups = torch.split(query_, num_queries//num_groups, dim=1)
+        query_pos_groups = torch.split(query_pos_, num_queries//num_groups, dim=1)
+        querys_ = []
+        for i in range(4):
+            query = query_groups[i]
+            query_pos = query_pos_groups[i]
+            query = self.self_attn(
+                query=query,
+                key=query,
+                value=query,
+                query_pos=query_pos,
+                key_pos=query_pos,
+                # attn_mask=self_attn_mask,
+                **kwargs)
+            querys_.append(query)
+        query = dn_query
+        query_pos = dn_query_pos
+        dn_query = self.self_attn(
+            query=query,
+            key=query,
+            value=query,
+            query_pos=query_pos,
+            key_pos=query_pos,
+            attn_mask=self_attn_mask[:-num_queries, :-num_queries],
+            **kwargs)
+        query = torch.cat(querys_ + [dn_query], dim=1)
+        query_pos = query_pos_back
+
+        query = self.norms[0](query)
+        query = self.cross_attn(
+            query=query,
+            key=key,
+            value=value,
+            query_pos=query_pos,
+            key_pos=key_pos,
+            attn_mask=cross_attn_mask,
+            key_padding_mask=key_padding_mask,
+            **kwargs)
+        query = self.norms[1](query)
+        query = self.ffn(query)
+        query = self.norms[2](query)
+
+        return query
 
 class CustomDeformableDetrTransformerEncoderLayer(DeformableDetrTransformerEncoderLayer):
 
