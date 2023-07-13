@@ -446,11 +446,12 @@ class CustomDeformableDetrTransformerDecoderLayer(DeformableDetrTransformerDecod
                 cross_attn_mask: Tensor = None,
                 key_padding_mask: Tensor = None,
                 **kwargs) -> Tensor:
+        num_queries = 800
         query_pos_back = query_pos
-        query_, query_pos_ = query[:, :200, :], query_pos[:, :200, :]
-        dn_query, dn_query_pos = query[:, 200:, :], query_pos[:, 200:, :]
-        query_groups = torch.split(query_, 50, dim=1)
-        query_pos_groups = torch.split(query_pos_, 50, dim=1)
+        query_, query_pos_ = query[:, :num_queries, :], query_pos[:, :num_queries, :]
+        dn_query, dn_query_pos = query[:, num_queries:, :], query_pos[:, num_queries:, :]
+        query_groups = torch.split(query_, num_queries//4, dim=1)
+        query_pos_groups = torch.split(query_pos_, num_queries//4, dim=1)
         querys_ = []
         for i in range(4):
             query = query_groups[i]

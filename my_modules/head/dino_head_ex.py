@@ -20,8 +20,9 @@ class MyMultiLevelHead(CustomDINOHead):
     """
 
     def __init__(self,
-                 range_list=(0.04, 0.07, 0.11, 0.17),
-                 range_prob_list=(0.2, 0.2, 0.2, 0.2, 0.2),
+                 range_list=(0.25, 0.5, 0.75),
+                 # range_prob_list=(0.1, 0.4, 0.4, 0.1),
+                 range_prob_list=None,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_ranges = len(range_list) + 1
@@ -71,6 +72,7 @@ class MyMultiLevelHead(CustomDINOHead):
         total_num_queries = cls_score.size(0)
         num_queries_per_group = [0] + [int(prob * total_num_queries) for prob in self.range_prob_list]
         cut_points = torch.cumsum(torch.tensor(num_queries_per_group), dim=0)
+        cut_points[-1] = total_num_queries
         cls_score_mlvl, bbox_pred_mlvl = [], []
         for i in range(self.num_ranges):
             cls_score_mlvl.append(cls_score[cut_points[i]: cut_points[i + 1]])
@@ -78,12 +80,15 @@ class MyMultiLevelHead(CustomDINOHead):
 
         # split_target_to_levels
         _, img_w = img_meta['img_shape']
-        range_list = [prob * img_w for prob in self.range_list]
+        range_list = [ran * img_w for ran in self.range_list]
+        gt_instances = InstanceData.cat([gt_instances] * self.num_ranges)
         gt_bboxes = gt_instances.bboxes
-        bboxes_len = gt_bboxes[:, 2] - gt_bboxes[:, 0]
+        # bboxes_len = gt_bboxes[:, 2] - gt_bboxes[:, 0]
+        bboxes_len = (gt_bboxes[:, 2] + gt_bboxes[:, 0]) / 2
         gt_instance_mlvl = []
         for j in range(self.num_ranges):
             gt_instance_mlvl.append(gt_instances[torch.logical_and(range_list[j] < bboxes_len, bboxes_len <= range_list[j + 1])])
+        assert sum([len(i) for i in gt_instance_mlvl]) == len(gt_instances)
 
         (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
          pos_inds_list, neg_inds_list) = multi_apply(self._get_targets_single_level,
