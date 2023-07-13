@@ -20,7 +20,7 @@ class MyMultiLevelHead(CustomDINOHead):
     """
 
     def __init__(self,
-                 range_list=(0.25, 0.5, 0.75),
+                 range_list=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95),
                  # range_prob_list=(0.1, 0.4, 0.4, 0.1),
                  range_prob_list=None,
                  *args, **kwargs):
@@ -78,17 +78,18 @@ class MyMultiLevelHead(CustomDINOHead):
             cls_score_mlvl.append(cls_score[cut_points[i]: cut_points[i + 1]])
             bbox_pred_mlvl.append(bbox_pred[cut_points[i]: cut_points[i + 1]])
 
-        # split_target_to_levels
-        _, img_w = img_meta['img_shape']
-        range_list = [ran * img_w for ran in self.range_list]
-        gt_instances = InstanceData.cat([gt_instances] * self.num_ranges)
-        gt_bboxes = gt_instances.bboxes
+        # # split_target_to_levels
+        # _, img_w = img_meta['img_shape']
+        # range_list = [ran * img_w for ran in self.range_list]
+        # gt_instances = InstanceData.cat([gt_instances] * self.num_ranges)
+        # gt_bboxes = gt_instances.bboxes
         # bboxes_len = gt_bboxes[:, 2] - gt_bboxes[:, 0]
-        bboxes_len = (gt_bboxes[:, 2] + gt_bboxes[:, 0]) / 2
-        gt_instance_mlvl = []
-        for j in range(self.num_ranges):
-            gt_instance_mlvl.append(gt_instances[torch.logical_and(range_list[j] < bboxes_len, bboxes_len <= range_list[j + 1])])
-        assert sum([len(i) for i in gt_instance_mlvl]) == len(gt_instances)
+        # bboxes_len = (gt_bboxes[:, 2] + gt_bboxes[:, 0]) / 2
+        # gt_instance_mlvl = []
+        # for j in range(self.num_ranges):
+        #     gt_instance_mlvl.append(gt_instances[torch.logical_and(range_list[j] < bboxes_len, bboxes_len <= range_list[j + 1])])
+        # assert sum([len(i) for i in gt_instance_mlvl]) == len(gt_instances)
+        gt_instance_mlvl = [gt_instances] * self.num_ranges
 
         (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
          pos_inds_list, neg_inds_list) = multi_apply(self._get_targets_single_level,
