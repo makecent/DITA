@@ -3,4 +3,3 @@
 from .tadtr_head import *
 from .dino_head import *
 from .deformable_detr_head import *
-from .dino_head_ex import *

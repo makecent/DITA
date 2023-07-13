@@ -78,7 +78,7 @@ model = dict(
         post_norm_cfg=None),
     positional_encoding=dict(num_feats=128, normalize=True, offset=-0.5, temperature=10000),
     bbox_head=dict(
-        type='MyMultiLevelHead',
+        type='CustomDINOHead',
         num_classes=20,
         sync_cls_avg_factor=True,
         loss_cls=dict(
