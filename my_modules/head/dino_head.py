@@ -301,10 +301,16 @@ class CustomDINOHead(DINOHead):
             num_denoising_queries = dn_meta['num_denoising_queries']
             if isinstance(all_layers_cls_scores, list): # when SQR applied, the number of queries in layers are different
                 batch_size, _, num_classes = all_layers_cls_scores[0].shape
-                all_layers_denoising_cls_scores = [layer_scores[:, :num_denoising_queries, :].reshape(batch_size, -1, num_classes) for layer_scores in all_layers_cls_scores]
-                all_layers_matching_cls_scores = [layer_scores[:, num_denoising_queries:, :].reshape(batch_size, -1, num_classes) for layer_scores in all_layers_cls_scores]
-                all_layers_denoising_bbox_preds = [layer_box[:, :num_denoising_queries, :].reshape(batch_size, -1, 4) for layer_box in all_layers_bbox_preds]
-                all_layers_matching_bbox_preds = [layer_box[:, num_denoising_queries:, :].reshape(batch_size, -1, 4) for layer_box in all_layers_bbox_preds]
+                all_layers_denoising_cls_scores = [layer_scores[:, :num_denoising_queries, :] for layer_scores in all_layers_cls_scores]
+                all_layers_matching_cls_scores = [layer_scores[:, num_denoising_queries:, :] for layer_scores in all_layers_cls_scores]
+                all_layers_denoising_bbox_preds = [layer_box[:, :num_denoising_queries, :] for layer_box in all_layers_bbox_preds]
+                all_layers_matching_bbox_preds = [layer_box[:, num_denoising_queries:, :] for layer_box in all_layers_bbox_preds]
+
+                # Roll-back the batch size increased by recollection. Note that you cannot use reshape because it's interleaved
+                all_layers_denoising_cls_scores = [torch.cat(layer_dn_scores.split(batch_size), dim=1) for layer_dn_scores in all_layers_denoising_cls_scores]
+                all_layers_matching_cls_scores = [torch.cat(layer_scores.split(batch_size), dim=1) for layer_scores in all_layers_matching_cls_scores ]
+                all_layers_denoising_bbox_preds = [torch.cat(layer_dn_box.split(batch_size), dim=1)for layer_dn_box in all_layers_denoising_bbox_preds]
+                all_layers_matching_bbox_preds = [torch.cat(layer_box.split(batch_size), dim=1) for layer_box in all_layers_matching_bbox_preds]
             else:
                 all_layers_denoising_cls_scores = \
                     all_layers_cls_scores[:, :, : num_denoising_queries, :]
