@@ -11,8 +11,8 @@ from mmengine.model import xavier_init
 from torch import Tensor, nn
 from torch.nn.init import normal_
 
-from my_modules.layers.custom_layers import CustomDeformableDetrTransformerEncoder
 from my_modules.detector.my_decoder import MyTransformerDecoder
+from my_modules.layers.custom_layers import CustomDeformableDetrTransformerEncoder
 from my_modules.layers.positional_encoding import CustomSinePositionalEncoding
 from my_modules.layers.pseudo_layers import Pseudo2DLinear, Pseudo4DRegLinear
 
@@ -227,7 +227,8 @@ class MyDeformableDETR(DINO):
             spatial_shapes=spatial_shapes,
             level_start_index=level_start_index,
             valid_ratios=valid_ratios,
-            reg_branches=self.bbox_head.reg_branches)
+            reg_branches=self.bbox_head.reg_branches
+            if self.with_box_refine else None)
 
         if len(query) == self.num_queries:
             # NOTE: This is to make sure label_embeding can be involved to

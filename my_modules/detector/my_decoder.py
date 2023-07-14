@@ -14,7 +14,7 @@ class MyTransformerDecoder(DetrTransformerDecoder):
     def __init__(self, dynamic_pos=False, *args, **kwargs):
         self.dynamic_pos = dynamic_pos
         super().__init__(*args, **kwargs)
-        self.sqr = True
+        self.sqr = False
 
     def _init_layers(self) -> None:
         """Initialize decoder layers."""
@@ -87,6 +87,8 @@ class MyTransformerDecoder(DetrTransformerDecoder):
                     new_reference_points = tmp
                     new_reference_points[..., :2] = tmp[..., :2] + inverse_sigmoid(reference_points, eps=1e-5)
                     new_reference_points = new_reference_points.sigmoid()
+            else:
+                new_reference_points = reference_points
 
             # Query Recollection
             if self.training and self.sqr:
