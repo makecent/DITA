@@ -24,7 +24,7 @@ lr = 0.0001
 model = dict(
     type='MyDeformableDETR',
     num_queries=200,
-    with_box_refine=False,
+    with_box_refine=True,
     as_two_stage=False,
     num_feature_levels=4,
     data_preprocessor=dict(type='DetDataPreprocessor'),
