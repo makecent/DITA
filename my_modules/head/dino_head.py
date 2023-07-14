@@ -44,7 +44,7 @@ class CustomDINOHead(DINOHead):
         nn.init.constant_(self.reg_branches[0][-1].bias.data[1:], -2.0)
 
     def forward(self, hidden_states: Tensor,
-                references: List[Tensor]) -> Tuple[Tensor]:
+                references: List[Tensor]) -> Tuple[Tensor, Tensor]:
         """Forward function.
 
         Args:
@@ -96,6 +96,9 @@ class CustomDINOHead(DINOHead):
             outputs_coord = tmp_reg_preds.sigmoid()
             all_layers_outputs_classes.append(outputs_class)
             all_layers_outputs_coords.append(outputs_coord)
+        #
+        # all_layers_outputs_classes = torch.cat(all_layers_outputs_classes, dim=0)
+        # all_layers_outputs_coords = torch.cat(all_layers_outputs_coords, dim=0)
 
         return all_layers_outputs_classes, all_layers_outputs_coords
 
@@ -124,6 +127,14 @@ class CustomDINOHead(DINOHead):
         num_imgs = cls_scores.size(0)
         cls_scores_list = [cls_scores[i] for i in range(num_imgs)]
         bbox_preds_list = [bbox_preds[i] for i in range(num_imgs)]
+
+        num_targets = len(batch_gt_instances)
+        if num_targets < num_imgs:  # When SQR applied, queries are recollected from layers, increasing the batch_size.
+            assert num_imgs % num_targets == 0
+            repeats = num_imgs // num_targets
+            batch_gt_instances = batch_gt_instances * repeats
+            batch_img_metas = batch_img_metas * repeats
+
         cls_reg_targets = self.get_targets(cls_scores_list, bbox_preds_list,
                                            batch_gt_instances, batch_img_metas)
         (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
@@ -213,30 +224,22 @@ class CustomDINOHead(DINOHead):
             Tuple[Tensor]: A tuple including `loss_cls`, `loss_box` and
             `loss_iou`.
         """
+        num_preds, num_targets = dn_bbox_preds.shape[0], len(batch_gt_instances)
+        if num_targets < num_preds:  # When SQR applied, queries are recollected from layers, increasing the batch_size.
+            assert num_preds % num_targets == 0
+            repeats = num_preds // num_targets
+            batch_gt_instances = batch_gt_instances * repeats
+            batch_img_metas = batch_img_metas * repeats
+
         cls_reg_targets = self.get_dn_targets(batch_gt_instances,
                                               batch_img_metas, dn_meta)
         (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
          num_total_pos, num_total_neg) = cls_reg_targets
 
-        num_preds, num_targets = dn_bbox_preds.shape[1], dn_meta['num_denoising_queries']
-        if num_targets < num_preds:  # When SQR applied, dn queries are recollected from layers.
-            assert num_preds % num_targets == 0
-            repeats = num_preds // num_targets
-            labels_list = [x.repeat(repeats) for x in labels_list]
-            label_weights_list = [x.repeat(repeats) for x in label_weights_list]
-            bbox_targets_list = [x.repeat(repeats, 1) for x in bbox_targets_list]
-            bbox_weights_list = [x.repeat(repeats, 1) for x in bbox_weights_list]
-            num_total_pos *= repeats
-            num_total_neg *= repeats
-
-
         labels = torch.cat(labels_list, 0)
         label_weights = torch.cat(label_weights_list, 0)
         bbox_targets = torch.cat(bbox_targets_list, 0)
         bbox_weights = torch.cat(bbox_weights_list, 0)
-
-
-
 
         # classification loss
         cls_scores = dn_cls_scores.reshape(-1, self.cls_out_channels)
@@ -306,11 +309,11 @@ class CustomDINOHead(DINOHead):
                 all_layers_denoising_bbox_preds = [layer_box[:, :num_denoising_queries, :] for layer_box in all_layers_bbox_preds]
                 all_layers_matching_bbox_preds = [layer_box[:, num_denoising_queries:, :] for layer_box in all_layers_bbox_preds]
 
-                # Roll-back the batch size increased by recollection. Note that you cannot use reshape because it's interleaved
-                all_layers_denoising_cls_scores = [torch.cat(layer_dn_scores.split(batch_size), dim=1) for layer_dn_scores in all_layers_denoising_cls_scores]
-                all_layers_matching_cls_scores = [torch.cat(layer_scores.split(batch_size), dim=1) for layer_scores in all_layers_matching_cls_scores ]
-                all_layers_denoising_bbox_preds = [torch.cat(layer_dn_box.split(batch_size), dim=1)for layer_dn_box in all_layers_denoising_bbox_preds]
-                all_layers_matching_bbox_preds = [torch.cat(layer_box.split(batch_size), dim=1) for layer_box in all_layers_matching_bbox_preds]
+                # # Roll-back the batch size increased by recollection. Note that you cannot use reshape because it's interleaved
+                # all_layers_denoising_cls_scores = [torch.cat(layer_dn_scores.split(batch_size), dim=1) for layer_dn_scores in all_layers_denoising_cls_scores]
+                # all_layers_matching_cls_scores = [torch.cat(layer_scores.split(batch_size), dim=1) for layer_scores in all_layers_matching_cls_scores ]
+                # all_layers_denoising_bbox_preds = [torch.cat(layer_dn_box.split(batch_size), dim=1)for layer_dn_box in all_layers_denoising_bbox_preds]
+                # all_layers_matching_bbox_preds = [torch.cat(layer_box.split(batch_size), dim=1) for layer_box in all_layers_matching_bbox_preds]
             else:
                 all_layers_denoising_cls_scores = \
                     all_layers_cls_scores[:, :, : num_denoising_queries, :]

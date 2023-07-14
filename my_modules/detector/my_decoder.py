@@ -14,7 +14,7 @@ class MyTransformerDecoder(DetrTransformerDecoder):
     def __init__(self, dynamic_pos=False, *args, **kwargs):
         self.dynamic_pos = dynamic_pos
         super().__init__(*args, **kwargs)
-        self.sqr = False
+        self.sqr = True
 
     def _init_layers(self) -> None:
         """Initialize decoder layers."""
