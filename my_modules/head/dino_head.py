@@ -300,24 +300,11 @@ class CustomDINOHead(DINOHead):
         if dn_meta is not None:
             num_denoising_queries = dn_meta['num_denoising_queries']
             if isinstance(all_layers_cls_scores, list): # when SQR applied, the number of queries in layers are different
-                num_queries = all_layers_cls_scores[0].shape[1]
-                all_layers_denoising_cls_scores = []
-                all_layers_matching_cls_scores = []
-                all_layers_denoising_bbox_preds = []
-                all_layers_matching_bbox_preds = []
-                for lid in range(len(all_layers_cls_scores)):
-                    layer_score = all_layers_cls_scores[lid]
-                    layer_bbox = all_layers_bbox_preds[lid]
-                    layer_score_recollection = torch.split(layer_score, num_queries, dim=1)
-                    layer_bbox_recollection = torch.split(layer_bbox, num_queries, dim=1)
-                    layer_denosing_score = [collection[:, :num_denoising_queries, :] for collection in layer_score_recollection]
-                    layer_matching_score = [collection[:, num_denoising_queries:, :] for collection in layer_score_recollection]
-                    layer_denosing_bbox = [collection[:, :num_denoising_queries, :] for collection in layer_bbox_recollection]
-                    layer_matching_bbox = [collection[:, num_denoising_queries:, :] for collection in layer_bbox_recollection]
-                    all_layers_denoising_cls_scores.append(torch.cat(layer_denosing_score, dim=1))
-                    all_layers_matching_cls_scores.append(torch.cat(layer_matching_score, dim=1))
-                    all_layers_denoising_bbox_preds.append(torch.cat(layer_denosing_bbox, dim=1))
-                    all_layers_matching_bbox_preds.append(torch.cat(layer_matching_bbox, dim=1))
+                batch_size, _, num_classes = all_layers_cls_scores[0].shape
+                all_layers_denoising_cls_scores = [layer_scores[:, :num_denoising_queries, :].reshape(batch_size, -1, num_classes) for layer_scores in all_layers_cls_scores]
+                all_layers_matching_cls_scores = [layer_scores[:, num_denoising_queries:, :].reshape(batch_size, -1, num_classes) for layer_scores in all_layers_cls_scores]
+                all_layers_denoising_bbox_preds = [layer_box[:, :num_denoising_queries, :].reshape(batch_size, -1, 4) for layer_box in all_layers_bbox_preds]
+                all_layers_matching_bbox_preds = [layer_box[:, num_denoising_queries:, :].reshape(batch_size, -1, 4) for layer_box in all_layers_bbox_preds]
             else:
                 all_layers_denoising_cls_scores = \
                     all_layers_cls_scores[:, :, : num_denoising_queries, :]
