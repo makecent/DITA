@@ -21,6 +21,7 @@ class TH14Metric(VOCMetric):
                  max_per_video: int = False,
                  score_thr=0.0,
                  duration_thr=0.0,
+                 nms_in_overlap=False,
                  eval_mode: str = 'area',
                  **kwargs):
         super().__init__(eval_mode=eval_mode, **kwargs)
@@ -28,6 +29,7 @@ class TH14Metric(VOCMetric):
         self.max_per_video = max_per_video
         self.score_thr = score_thr
         self.duration_thr = duration_thr
+        self.nms_in_overlap = nms_in_overlap
 
     def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
         """Process one batch of data samples and predictions. The processed
@@ -164,36 +166,32 @@ class TH14Metric(VOCMetric):
     def non_maximum_suppression(self, preds):
         preds_nms = []
         for pred_v in preds:
-            if self.nms_cfg is not None and pred_v.in_overlap.sum() > 1:
-                # We only perform NMS on predictions in each overlapped region
-                # TODO: Improve: 1. NMS globally 2. NMS all overlap regions once 3. NMS threshold 4. NMS type
-                pred_not_in_overlaps = pred_v[~pred_v.in_overlap.max(-1)[0]]
-                pred_in_overlaps = []
-                for i in range(pred_v.in_overlap.shape[1]):
-                    pred_in_overlap = pred_v[pred_v.in_overlap[:, i]]
-                    if len(pred_in_overlap) == 0:
-                        continue
-                    bboxes, keep_idxs = batched_nms(pred_in_overlap.bboxes,
-                                                    pred_in_overlap.scores,
-                                                    pred_in_overlap.labels,
+            if self.nms_cfg is not None:
+                if self.nms_in_overlap:
+                    if pred_v.in_overlap.sum() > 1:
+                        # Perform NMS over predictions in each overlapped region
+                        # TODO: Improve: 1. NMS globally 2. NMS all overlap regions once 3. NMS threshold 4. NMS type
+                        pred_not_in_overlaps = pred_v[~pred_v.in_overlap.max(-1)[0]]
+                        pred_in_overlaps = []
+                        for i in range(pred_v.in_overlap.shape[1]):
+                            pred_in_overlap = pred_v[pred_v.in_overlap[:, i]]
+                            if len(pred_in_overlap) == 0:
+                                continue
+                            bboxes, keep_idxs = batched_nms(pred_in_overlap.bboxes,
+                                                            pred_in_overlap.scores,
+                                                            pred_in_overlap.labels,
+                                                            nms_cfg=self.nms_cfg)
+                            pred_in_overlap = pred_in_overlap[keep_idxs]
+                            pred_in_overlap.scores = bboxes[:, -1]
+                            pred_in_overlaps.append(pred_in_overlap)
+                        pred_v = InstanceData.cat(pred_in_overlaps + [pred_not_in_overlaps])
+                else:
+                    bboxes, keep_idxs = batched_nms(pred_v.bboxes,
+                                                    pred_v.scores,
+                                                    pred_v.labels,
                                                     nms_cfg=self.nms_cfg)
-                    pred_in_overlap = pred_in_overlap[keep_idxs]
-                    pred_in_overlap.scores = bboxes[:, -1]
-
-                    # # TadTR version of NMS
-                    # from .tadtr_nms import apply_nms
-                    # pred_in_overlap_2 = apply_nms(
-                    #     np.concatenate((pred_in_overlap.bboxes,
-                    #                     pred_in_overlap.scores[:, None],
-                    #                     pred_in_overlap.labels[:, None],
-                    #                     np.arange(len(pred_in_overlap))[:, None]),
-                    #                    axis=1))
-                    # pred_in_overlap_2 = InstanceData(bboxes=torch.from_numpy(pred_in_overlap_2[:, :4]),
-                    #                                scores=torch.from_numpy(pred_in_overlap_2[:, 4]),
-                    #                                labels=torch.from_numpy(pred_in_overlap_2[:, 5].astype(int)))
-                    pred_in_overlaps.append(pred_in_overlap)
-                # pred_not_in_overlaps.pop('in_overlap')
-                pred_v = InstanceData.cat(pred_in_overlaps + [pred_not_in_overlaps])
+                    pred_v = pred_v[keep_idxs]
+                    pred_v.scores = bboxes[:, -1]
             sort_idxs = pred_v.scores.argsort(descending=True)
             pred_v = pred_v[sort_idxs]
             # keep top-k predictions

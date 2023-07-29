@@ -244,9 +244,9 @@ class CustomDeformableDetrTransformerEncoder(DeformableDetrTransformerEncoder):
             for _ in range(self.num_layers)
         ])
         self.embed_dims = self.layers[0].embed_dims
-        if self.memory_fuse:
-            self.proj = nn.Linear(self.embed_dims * (self.num_layers + 1), self.embed_dims)
-            self.norm = nn.LayerNorm(self.embed_dims)
+        # if self.memory_fuse:
+        #     self.proj = nn.Linear(self.embed_dims * (self.num_layers + 1), self.embed_dims)
+        #     self.norm = nn.LayerNorm(self.embed_dims)
 
     def forward(self, query: Tensor, query_pos: Tensor,
                 key_padding_mask: Tensor, spatial_shapes: Tensor,
@@ -289,9 +289,10 @@ class CustomDeformableDetrTransformerEncoder(DeformableDetrTransformerEncoder):
                 **kwargs)
             intermidiate_query.append(query)
         if self.memory_fuse:
-            query = torch.cat(intermidiate_query, dim=-1)
-            query = self.proj(query)
-            query = self.norm(query)
+            query = torch.sum(torch.stack(intermidiate_query), dim=0)
+            # query = torch.cat(intermidiate_query, dim=-1)
+            # query = self.proj(query)
+            # query = self.norm(query)
         return query
 
 

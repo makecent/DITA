@@ -91,6 +91,7 @@ model = dict(
         loss_iou=dict(type='CustomGIoULoss', loss_weight=iou_loss_coef)),
     dn_cfg=dict(label_noise_scale=0.5, box_noise_scale=1.0,
                 group_cfg=dict(dynamic=True, num_groups=None, num_dn_queries=100)),
+                # group_cfg=dict(dynamic=False, num_groups=5)),
     train_cfg=dict(
         assigner=dict(
             type='HungarianAssigner',
@@ -114,12 +115,6 @@ optim_wrapper = dict(
                                     'reference_points': dict(lr_mult=0.1)}))
 # learning policy
 max_epochs = 12  # 16 for TadTR
-train_cfg = dict(
-    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
-
-val_cfg = dict(type='ValLoop')
-test_cfg = dict(type='TestLoop')
-
 param_scheduler = [
     dict(
         type='MultiStepLR',
@@ -128,6 +123,28 @@ param_scheduler = [
         by_epoch=True,
         milestones=[10],
         gamma=0.1)]
+# max_epochs = 16
+# param_scheduler = [
+#     dict(
+#         type='LinearLR',
+#         start_factor=0.001,
+#         by_epoch=True,
+#         begin=0,
+#         end=4,
+#         convert_to_iter_based=True),
+#     dict(
+#         type='CosineAnnealingLR',
+#         by_epoch=True,
+#         T_max=12,
+#         begin=4,
+#         end=16,
+#         eta_min_ratio=0.01,
+#         convert_to_iter_based=True)
+# ]
+train_cfg = dict(
+    type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+val_cfg = dict(type='ValLoop')
+test_cfg = dict(type='TestLoop')
 
 # dataset settings
 train_pipeline = [
@@ -150,7 +167,7 @@ train_dataloader = dict(
                  on_the_fly=True,
                  window_size=256,
                  iof_thr=0.75,
-                 window_stride=64,  # overlap=0.75
+                 window_stride=32,  # overlap=0.75
                  pipeline=train_pipeline,
                  data_prefix=dict(feat='features/thumos_feat_VideoMAE2-RGB_I3D-Flow_2432')))
 val_dataloader = dict(
@@ -158,7 +175,15 @@ val_dataloader = dict(
                  fix_slice=True,
                  on_the_fly=True,
                  window_size=256,
-                 window_stride=192,  # overlap=0.25
+                 window_stride=64,  # overlap=0.25
                  pipeline=test_pipeline,
                  data_prefix=dict(feat='features/thumos_feat_VideoMAE2-RGB_I3D-Flow_2432')))
 test_dataloader = val_dataloader
+
+val_evaluator = dict(
+    type='TH14Metric',
+    metric='mAP',
+    iou_thrs=[0.3, 0.4, 0.5, 0.6, 0.7],
+    nms_in_overlap=False,   # True for TadTR
+    nms_cfg=dict(type='nms', iou_thr=0.6))  # 0.4 for TadTR
+test_evaluator = val_evaluator
