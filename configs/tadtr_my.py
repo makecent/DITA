@@ -114,14 +114,14 @@ optim_wrapper = dict(
                                     'sampling_offsets': dict(lr_mult=0.1),
                                     'reference_points': dict(lr_mult=0.1)}))
 # learning policy
-max_epochs = 12  # 16 for TadTR
+max_epochs = 6  # 16 for TadTR
 param_scheduler = [
     dict(
         type='MultiStepLR',
         begin=0,
         end=max_epochs,
         by_epoch=True,
-        milestones=[10],
+        milestones=[5],
         gamma=0.1)]
 # max_epochs = 16
 # param_scheduler = [
