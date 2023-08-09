@@ -181,7 +181,7 @@ val_dataloader = dict(
 test_dataloader = val_dataloader
 
 val_evaluator = dict(
-    type='TH14Metric',
+    type='TADmAPMetric',
     metric='mAP',
     iou_thrs=[0.3, 0.4, 0.5, 0.6, 0.7],
     nms_in_overlap=False,   # True for TadTR

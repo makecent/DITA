@@ -14,7 +14,7 @@ from mmcv.ops import batched_nms
 
 
 @METRICS.register_module()
-class TH14Metric(VOCMetric):
+class TADmAPMetric(VOCMetric):
 
     def __init__(self,
                  nms_cfg=dict(type='nms', iou_thr=0.4),
@@ -47,14 +47,19 @@ class TH14Metric(VOCMetric):
             gts, dets, gts_ignore = data['gt_instances'], data['pred_instances'], data['ignored_instances']
             ann = dict(
                 video_name=data['img_id'],  # for the purpose of future grouping detections of same video.
-                overlap=data['overlap'],  # for the purpose of NMS on overlapped region in testing videos
                 labels=gts['labels'].cpu().numpy(),
                 bboxes=gts['bboxes'].cpu().numpy(),
                 bboxes_ignore=gts_ignore.get('bboxes', torch.empty((0, 4))).cpu().numpy(),
                 labels_ignore=gts_ignore.get('labels', torch.empty(0, )).cpu().numpy())
 
+            if self.nms_in_overlap:
+                ann['overlap'] = data['overlap'],  # for the purpose of NMS on overlapped region in testing videos
+
             # Convert the format of segment predictions from feature-unit to second-unit (add window-offset back first).
-            dets['bboxes'] = (dets['bboxes'] + data['offset']) * data['feat_stride'] / data['fps']
+            if 'offset' in data:
+                dets['bboxes'] = dets['bboxes'] + data['offset']
+            dets['bboxes'] = dets['bboxes'] / data['fps']
+
             # Set y1, y2 of predictions the fixed value.
             dets['bboxes'][:, 1] = 0.1
             dets['bboxes'][:, 3] = 0.9
@@ -145,7 +150,7 @@ class TH14Metric(VOCMetric):
         for this_gt, this_pred in zip(gts, preds):
             video_name = this_gt.pop('video_name')
             # Computer the mask indicating that if a prediction is in the overlapped regions.
-            overlap_regions = this_gt.pop('overlap')
+            overlap_regions = this_gt.pop('overlap', np.empty([0]))
             if overlap_regions.size == 0:
                 this_pred.in_overlap = np.zeros(this_pred.bboxes.shape[0], dtype=bool)
             else:

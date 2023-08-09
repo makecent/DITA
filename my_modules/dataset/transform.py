@@ -131,7 +131,7 @@ class SlidingWindow(BaseTransform):
         self.iof_thr = iof_thr
         self.attempts = attempts
         self.crop_ratio = crop_ratio
-        self.just_loading = just_loading   # If True, sliding window was completed, we just load the features here.
+        self.just_loading = just_loading  # If True, sliding window was completed, we just load the features here.
 
     @staticmethod
     def get_valid_mask(segments, patch, iof_thr, ignore_flags=None):
@@ -200,6 +200,7 @@ class SlidingWindow(BaseTransform):
 
         return results
 
+
 @TRANSFORMS.register_module()
 class LoadFeat(BaseTransform):
 
@@ -230,7 +231,7 @@ class RescaleFeat(BaseTransform):
         results['segments'] = segments
         # scale_factor is be used in the inference stage to convert
         # the predicted segments to the scale of features before rescaling
-        results['scale_factor'] = self.window_size / feat_len
+        results['scale_factor'] = results['scale_factor'] * self.window_size / feat_len
         return results
 
 

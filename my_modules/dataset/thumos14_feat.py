@@ -75,6 +75,7 @@ class Thumos14FeatDataset(BaseDetDataset):
                              duration=float(video_info['duration']),
                              fps=float(video_info['FPS']),
                              feat_stride=self.feat_stride,
+                             scale_factor=1/self.feat_stride,
                              segments=segments,
                              labels=labels,
                              gt_ignore_flags=ignore_flags)
@@ -114,7 +115,7 @@ class Thumos14FeatDataset(BaseDetDataset):
                         feat_window = np.pad(feat_window,
                                              ((0, self.window_size - feat_win_len), (0, 0)),
                                              constant_values=0)
-                    data_info.update(dict(offset=start_idx,
+                    data_info.update(dict(offset=start_idx * self.feat_stride,
                                           feat_len=feat_win_len))  # before padding for computing the valid feature mask
                     if self.on_the_fly:
                         assert isinstance(self.pipeline.transforms[0], SlidingWindow)
