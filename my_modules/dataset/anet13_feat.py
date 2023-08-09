@@ -64,13 +64,11 @@ class ANet13FeatDataset(BaseDetDataset):
                  feat_stride,  # feature are extracted every n frames
                  skip_short=False,  # skip too short annotations
                  skip_wrong=False,  # skip videos that are wrong annotated
-                 window_size=None,  # the window size of sliding window.
                  split='training',
                  **kwargs):
         self.feat_stride = feat_stride
         self.skip_short = skip_short
         self.skip_wrong = skip_wrong
-        self.window_size = window_size
         self.split = split
         super(ANet13FeatDataset, self).__init__(**kwargs)
 
@@ -85,33 +83,29 @@ class ANet13FeatDataset(BaseDetDataset):
                 continue
             # Parsing ground truth
             segments, labels, ignore_flags = self.parse_labels(video_name, video_info)
+            if len(segments) == 0:
+                continue
 
             # Loading features
-            feat_path = osp.join(self.data_prefix['feat'], video_name) + '.npy'
+            feat_path = osp.join(self.data_prefix['feat'], 'v_' + video_name) + '.npy'
             if mmengine.exists(feat_path):
                 feat = np.load(feat_path)
             else:
                 warnings.warn(f"Cannot find feature file {feat_path}, skipped")
                 continue
-            feat_len = len(feat)
-
+            fps = 25.0
+            if not self.test_mode:
+                segments = segments * fps / self.feat_stride
             data_info = dict(video_name=video_name,
                              duration=float(video_info['duration']),
-                             fps=float(video_info['FPS']),
+                             fps=fps,
+                             feat_path=feat_path,
                              feat_stride=self.feat_stride,
-                             segments=segments,
+                             feat_len=len(feat),
                              labels=labels,
+                             segments=segments,
                              gt_ignore_flags=ignore_flags)
-
-            # Perform linear interpolation to fix the length of each feat
-            feat = F.interpolate(torch.from_numpy(feat).unsqueeze(0).unsqueeze(0),
-                                 size=(self.window_size, feat.shape[1]),
-                                 mode='linear', align_corners=False).squeeze(0).squeeze(0).numpy()
-            segments_f = segments * self.window_size / data_info['duration']  # solution 1
-            fps = 25  # default fps = 25
-            segments_f = segments * fps / self.feat_stride * self.window_size / feat_len  # solution 2
-            data_info.update(dict(feat=feat, feat_len=self.window_size, segments=segments_f))
-
+            data_list.append(data_info)
         print_log(f"number of feature windows:\t {len(data_list)}", logger=MMLogger.get_current_instance())
         return data_list
 

@@ -33,13 +33,13 @@ model = dict(
         dict(
             type='DownSampler1D',
             num_levels=4,
-            in_channels=2432,
-            out_channels=2432,
+            in_channels=2048,
+            out_channels=2048,
             out_indices=(0, 1, 2, 3),
             mask=False),
         dict(
             type='ChannelMapper',
-            in_channels=[2432, 2432, 2432, 2432],
+            in_channels=[2048, 2048, 2048, 2048],
             kernel_size=1,
             out_channels=256,
             act_cfg=None,
@@ -79,7 +79,7 @@ model = dict(
     positional_encoding=dict(num_feats=128, normalize=True, offset=-0.5, temperature=10000),
     bbox_head=dict(
         type='CustomDINOHead',
-        num_classes=20,
+        num_classes=200,
         sync_cls_avg_factor=True,
         loss_cls=dict(
             type='FocalLoss',
@@ -145,3 +145,4 @@ train_cfg = dict(
     type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
 val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
+default_hooks = dict(logger=dict(type='LoggerHook', interval=25))

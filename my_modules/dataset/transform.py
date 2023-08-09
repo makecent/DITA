@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from mmcv.transforms import BaseTransform
 from mmdet.registry import TRANSFORMS
+from torch.nn import functional as F
 
 
 def segment_overlaps(segments1,
@@ -199,6 +200,39 @@ class SlidingWindow(BaseTransform):
 
         return results
 
+@TRANSFORMS.register_module()
+class LoadFeat(BaseTransform):
+
+    def transform(self, results: Dict, ) -> Optional[Union[Dict, Tuple[List, List]]]:
+        results['feat'] = np.load(results['feat_path'])
+
+        return results
+
+
+@TRANSFORMS.register_module()
+class RescaleFeat(BaseTransform):
+
+    def __init__(self, window_size: int, training=True):  # the feature length input to the model:
+        self.window_size = window_size
+        self.training = training
+
+    def transform(self, results: Dict, ) -> Optional[Union[Dict, Tuple[List, List]]]:
+        # Perform linear interpolation to fix the length of each feat
+        feat, feat_len, segments = results['feat'], results['feat_len'], results['segments']
+        feat = F.interpolate(torch.from_numpy(np.ascontiguousarray(feat.transpose())).unsqueeze(0),
+                             size=self.window_size,
+                             mode='linear', align_corners=False).squeeze(0).numpy().transpose()
+        if self.training:
+            # segments_f = segments * self.window_size / data_info['duration']  # solution 1
+            segments = segments * self.window_size / feat_len  # solution 2
+        results['feat'] = feat
+        results['feat_len'] = self.window_size
+        results['segments'] = segments
+        # scale_factor is be used in the inference stage to convert
+        # the predicted segments to the scale of features before rescaling
+        results['scale_factor'] = self.window_size / feat_len
+        return results
+
 
 @TRANSFORMS.register_module()
 class ReFormat(BaseTransform):
@@ -222,7 +256,10 @@ class ReFormat(BaseTransform):
         results.update({'img_shape': (1, results['img'].shape[1])})
 
         results['img_path'] = ''
-        results['scale_factor'] = [1.0, 1.0]
+        if 'scale_factor' not in results:
+            results['scale_factor'] = [1.0, 1.0]
+        else:
+            results['scale_factor'] = [results['scale_factor'], 1.0]  # [w_scale, h_scale]
         results['flip'] = False
         results['flip_direction'] = None
         return results
