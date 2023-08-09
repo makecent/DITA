@@ -101,7 +101,7 @@ class ANet13FeatDataset(BaseDetDataset):
                              fps=fps,
                              feat_path=feat_path,
                              feat_stride=self.feat_stride,
-                             scale_factor=1 / self.feat_stride,
+                             scale_factor=fps / self.feat_stride,
                              feat_len=len(feat),
                              labels=labels,
                              segments=segments,

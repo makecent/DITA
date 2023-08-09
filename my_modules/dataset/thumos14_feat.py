@@ -75,7 +75,7 @@ class Thumos14FeatDataset(BaseDetDataset):
                              duration=float(video_info['duration']),
                              fps=float(video_info['FPS']),
                              feat_stride=self.feat_stride,
-                             scale_factor=1/self.feat_stride,
+                             scale_factor=float(video_info['FPS'])/self.feat_stride,
                              segments=segments,
                              labels=labels,
                              gt_ignore_flags=ignore_flags)
@@ -115,7 +115,8 @@ class Thumos14FeatDataset(BaseDetDataset):
                         feat_window = np.pad(feat_window,
                                              ((0, self.window_size - feat_win_len), (0, 0)),
                                              constant_values=0)
-                    data_info.update(dict(offset=start_idx * self.feat_stride,
+                    data_info.update(dict(offset_feat=start_idx,
+                                          offset_sec=start_idx * self.feat_stride / data_info['fps'],
                                           feat_len=feat_win_len))  # before padding for computing the valid feature mask
                     if self.on_the_fly:
                         assert isinstance(self.pipeline.transforms[0], SlidingWindow)
@@ -123,25 +124,26 @@ class Thumos14FeatDataset(BaseDetDataset):
                     else:
                         data_info.update(dict(feat=feat_window))
 
-                    # Convert the format of segment annotations from second-unit to feature-unit.
-                    segments_f = segments * data_info['fps'] / self.feat_stride
+
                     if self.test_mode:
                         data_info.update(dict(overlap=overlapped_regions))
                     else:
+                        # Convert the format of segment annotations from second-unit to feature-unit.
+                        segments_feat = segments * data_info['fps'] / self.feat_stride
                         # During the training, windows has no segment annotated are skipped
                         # Also known as Integrity-based instance filtering (IBIF)
-                        valid_mask = SlidingWindow.get_valid_mask(segments_f,
+                        valid_mask = SlidingWindow.get_valid_mask(segments_feat,
                                                                   np.array([[start_idx, end_idx]], dtype=np.float32),
                                                                   iof_thr=self.iof_thr,
                                                                   ignore_flags=ignore_flags)
                         if not valid_mask.any():
                             continue
                         # Convert the segment annotations to be relative to the feature window
-                        segments_f = segments_f[valid_mask].clip(min=start_idx, max=end_idx) - start_idx
-                        labels_f = labels[valid_mask]
+                        segments_feat = segments_feat[valid_mask].clip(min=start_idx, max=end_idx) - start_idx
+                        labels_feat = labels[valid_mask]
                         ignore_flags_f = ignore_flags[valid_mask]
-                        data_info.update(dict(segments=segments_f,
-                                              labels=labels_f,
+                        data_info.update(dict(segments=segments_feat,
+                                              labels=labels_feat,
                                               gt_ignore_flags=ignore_flags_f))
 
                     data_list.append(deepcopy(data_info))

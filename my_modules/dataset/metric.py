@@ -56,9 +56,8 @@ class TADmAPMetric(VOCMetric):
                 ann['overlap'] = data['overlap'],  # for the purpose of NMS on overlapped region in testing videos
 
             # Convert the format of segment predictions from feature-unit to second-unit (add window-offset back first).
-            if 'offset' in data:
-                dets['bboxes'] = dets['bboxes'] + data['offset']
-            dets['bboxes'] = dets['bboxes'] / data['fps']
+            if 'offset_sec' in data:
+                dets['bboxes'] = dets['bboxes'] + data['offset_sec']
 
             # Set y1, y2 of predictions the fixed value.
             dets['bboxes'][:, 1] = 0.1

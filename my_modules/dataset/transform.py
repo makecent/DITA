@@ -189,8 +189,8 @@ class SlidingWindow(BaseTransform):
                     f"Could not found a valid crop after {self.attempts} attempts, "
                     f"you may need modify the window size or number of attempts")
         else:
-            offset, feat_len, feat_path = results['offset'], results['feat_len'], results['feat_path']
-            feat = np.load(feat_path)[offset: offset + feat_len]
+            offset_feat, feat_len, feat_path = results['offset_feat'], results['feat_len'], results['feat_path']
+            feat = np.load(feat_path)[offset_feat: offset_feat + feat_len]
             crop_size = feat_len
 
         if crop_size < self.window_size:
@@ -230,7 +230,7 @@ class RescaleFeat(BaseTransform):
         results['feat_len'] = self.window_size
         results['segments'] = segments
         # scale_factor is be used in the inference stage to convert
-        # the predicted segments to the scale of features before rescaling
+        # the predicted segments from feature level to video level (in seconds)
         results['scale_factor'] = results['scale_factor'] * self.window_size / feat_len
         return results
 
