@@ -38,14 +38,16 @@ param_scheduler = [
 
 # 2. Use the self-supervised features (VideoMAE2)
 train_pipeline = [
-    dict(type='SlidingWindow', window_size=256, just_loading=True),
+    dict(type='FeatDecode'),
+    dict(type='PadFeat', pad_len=256),
     dict(type='ReFormat'),
     dict(type='PackDetInputs',
          meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
                     'scale_factor', 'flip', 'flip_direction',
                     'fps', 'feat_stride', 'offset_sec'))]
 test_pipeline = [
-    dict(type='SlidingWindow', window_size=256, just_loading=True),
+    dict(type='FeatDecode'),
+    dict(type='PadFeat', pad_len=256),
     dict(type='ReFormat'),
     dict(type='PackDetInputs',
          meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',

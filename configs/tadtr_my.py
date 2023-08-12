@@ -147,15 +147,20 @@ val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
 
 # dataset settings
+window_size = 256
+training_stride = 32
+testing_stride = 64
 train_pipeline = [
-    dict(type='SlidingWindow', window_size=256, just_loading=True),
+    dict(type='FeatDecode'),
+    dict(type='PadFeat', pad_len=window_size),
     dict(type='ReFormat'),
     dict(type='PackDetInputs',
          meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
                     'scale_factor', 'flip', 'flip_direction',
                     'fps', 'feat_stride', 'offset_sec'))]
 test_pipeline = [
-    dict(type='SlidingWindow', window_size=256, just_loading=True),
+    dict(type='FeatDecode'),
+    dict(type='PadFeat', pad_len=window_size),
     dict(type='ReFormat'),
     dict(type='PackDetInputs',
          meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape',
@@ -165,17 +170,17 @@ train_dataloader = dict(
     dataset=dict(feat_stride=4,
                  fix_slice=True,
                  on_the_fly=True,
-                 window_size=256,
+                 window_size=window_size,
                  iof_thr=0.75,
-                 window_stride=32,  # overlap=0.75
+                 window_stride=training_stride,
                  pipeline=train_pipeline,
                  data_prefix=dict(feat='features/thumos_feat_VideoMAE2-RGB_I3D-Flow_2432')))
 val_dataloader = dict(
     dataset=dict(feat_stride=4,
                  fix_slice=True,
                  on_the_fly=True,
-                 window_size=256,
-                 window_stride=64,  # overlap=0.25
+                 window_size=window_size,
+                 window_stride=testing_stride,
                  pipeline=test_pipeline,
                  data_prefix=dict(feat='features/thumos_feat_VideoMAE2-RGB_I3D-Flow_2432')))
 test_dataloader = val_dataloader
