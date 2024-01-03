@@ -10,7 +10,10 @@ custom_imports = dict(imports=['my_modules'], allow_failed_imports=False)
 # 5. Use memory fusion
 enc_layers = 4
 dec_layers = 4
-dim_feedforward = 1024
+num_levels = 4
+feature_dim = 2432
+ffn_dim = 2048
+embed_dim = 256
 dropout = 0.1
 
 cls_loss_coef = 2
@@ -26,35 +29,36 @@ model = dict(
     num_queries=200,
     with_box_refine=True,
     as_two_stage=False,
-    num_feature_levels=4,
+    num_feature_levels=num_levels,
     data_preprocessor=dict(type='DetDataPreprocessor'),
     backbone=dict(type='PseudoBackbone', multi_scale=False),  # No backbone since we use pre-extracted features.
     neck=[
         dict(
             type='DownSampler1D',
-            num_levels=4,
-            in_channels=2432,
-            out_channels=2432,
-            out_indices=(0, 1, 2, 3),
+            num_levels=num_levels,
+            in_channels=feature_dim,
+            out_channels=feature_dim,
+            out_indices=range(0, num_levels + 1),
             mask=False),
         dict(
             type='ChannelMapper',
-            in_channels=[2432, 2432, 2432, 2432],
+            in_channels=[feature_dim] * num_levels,
             kernel_size=1,
-            out_channels=256,
+            out_channels=embed_dim,
             act_cfg=None,
             norm_cfg=dict(type='GN', num_groups=32),
-            num_outs=4)],
+            num_outs=num_levels)],
     encoder=dict(
         num_layers=enc_layers,
         layer_cfg=dict(
             self_attn_cfg=dict(
-                num_levels=4,   # Using multi-level features
-                embed_dims=256,
+                num_levels=num_levels,   # Using multi-level features
+                embed_dims=embed_dim,
+                num_points=4,
                 batch_first=True),
             ffn_cfg=dict(
-                embed_dims=256,
-                feedforward_channels=dim_feedforward,
+                embed_dims=embed_dim,
+                feedforward_channels=ffn_dim,
                 ffn_drop=dropout)),
         memory_fuse=True),  # Using memory fusion
     decoder=dict(
@@ -62,24 +66,26 @@ model = dict(
         return_intermediate=True,
         layer_cfg=dict(
             self_attn_cfg=dict(
-                embed_dims=256,
+                embed_dims=embed_dim,
                 num_heads=8,
                 dropout=dropout,
                 batch_first=True),
             cross_attn_cfg=dict(
-                embed_dims=256,
-                num_levels=4,   # Using multi-level features
+                embed_dims=embed_dim,
+                num_points=4,
+                num_levels=num_levels,   # Using multi-level features
                 dropout=dropout,
                 batch_first=True),
             ffn_cfg=dict(
-                embed_dims=256,
-                feedforward_channels=dim_feedforward,
+                embed_dims=embed_dim,
+                feedforward_channels=ffn_dim,
                 ffn_drop=dropout)),
         post_norm_cfg=None),
-    positional_encoding=dict(num_feats=128, normalize=True, offset=-0.5, temperature=10000),
+    positional_encoding=dict(num_feats=embed_dim//2, normalize=True, offset=-0.5, temperature=10000),
     bbox_head=dict(
         type='CustomDINOHead',
         num_classes=20,
+        embed_dims=embed_dim,
         sync_cls_avg_factor=True,
         loss_cls=dict(
             type='FocalLoss',
@@ -152,6 +158,7 @@ training_stride = 32
 testing_stride = 64
 train_pipeline = [
     dict(type='FeatDecode'),
+    # dict(type='RandCropFeat', min_crop_ratio=0.6),
     dict(type='PadFeat', pad_len=window_size),
     dict(type='ReFormat'),
     dict(type='PackDetInputs',

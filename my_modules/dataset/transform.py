@@ -132,6 +132,22 @@ class FeatDecode(BaseTransform):
 
 
 @TRANSFORMS.register_module()
+class RandCropFeat(BaseTransform):
+
+    def __init__(self, min_crop_ratio=0.9):
+        self.min_crop_ratio = min_crop_ratio
+
+    def transform(self,
+                  results: Dict) -> Optional[Union[Dict, Tuple[List, List]]]:
+        feat, feat_len = results['feat'], results['feat_len']
+        crop_len = int(random.uniform(self.min_crop_ratio, 1) * feat_len)
+        feat = feat[:crop_len]
+        results['feat'] = feat
+        results['feat_len'] = len(feat)
+        return results
+
+
+@TRANSFORMS.register_module()
 class PadFeat(BaseTransform):
 
     def __init__(self, pad_len=256):

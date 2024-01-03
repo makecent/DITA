@@ -14,6 +14,8 @@ class MyTransformerDecoder(DetrTransformerDecoder):
     def __init__(self, dynamic_pos=False, *args, **kwargs):
         self.dynamic_pos = dynamic_pos
         super().__init__(*args, **kwargs)
+        # TODO: solve the "RuntimeError: batch % im2col_step_ == 0 INTERNAL ASSERT FAILED" that happens
+        # when the number of queries meet some conditions
         self.sqr = True
 
     def _init_layers(self) -> None:

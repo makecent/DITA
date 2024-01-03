@@ -8,7 +8,7 @@ from mmdet.datasets import BaseDetDataset
 from mmdet.registry import DATASETS
 from mmengine import print_log, MMLogger
 
-from my_modules.dataset.transform import SlidingWindow
+from my_modules.dataset.transform import FeatDecode, SlidingWindow
 
 
 @DATASETS.register_module()
@@ -81,7 +81,7 @@ class Thumos14FeatDataset(BaseDetDataset):
                              gt_ignore_flags=ignore_flags)
 
             if not self.fix_slice and self.on_the_fly:  # slice randomly
-                assert isinstance(self.pipeline.transforms[0], SlidingWindow)
+                assert isinstance(self.pipeline.transforms[0], FeatDecode)
                 data_info.update(dict(feat=feat, feat_len=feat_len))
                 data_list.append(data_info)
             else:
@@ -119,11 +119,10 @@ class Thumos14FeatDataset(BaseDetDataset):
                                           offset_sec=start_idx * self.feat_stride / data_info['fps'],
                                           feat_len=feat_win_len))  # before padding for computing the valid feature mask
                     if self.on_the_fly:
-                        assert isinstance(self.pipeline.transforms[0], SlidingWindow)
+                        assert isinstance(self.pipeline.transforms[0], FeatDecode)
                         data_info.update(dict(feat_path=feat_path))
                     else:
                         data_info.update(dict(feat=feat_window))
-
 
                     if self.test_mode:
                         data_info.update(dict(overlap=overlapped_regions))

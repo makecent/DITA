@@ -16,6 +16,7 @@ class DownSampler1D(nn.Module):
                  strides=(1, 2),
                  paddings=(0, 1),
                  out_indices=(0, 1, 2, 3),
+                 max_pool=False,
                  mask=False,
                  ):
         super(DownSampler1D, self).__init__()
@@ -27,19 +28,23 @@ class DownSampler1D(nn.Module):
         self.paddings = paddings
         self.out_channels = out_channels
         self.out_indices = out_indices
+        self.max_pool = max_pool
         self.mask = mask
 
         td_layers = []
         for i in range(self.num_levels - 1):
-            td_layers.append(ConvModule(in_channels,
-                                        out_channels,
-                                        kernel_sizes,
-                                        strides,
-                                        paddings,
-                                        conv_cfg=dict(type='Conv2d'),
-                                        norm_cfg=dict(type='SyncBN'),
-                                        act_cfg=dict(type='ReLU')))
-            in_channels = out_channels
+            if self.max_pool:
+                td_layers.append(nn.MaxPool2d(kernel_size=kernel_sizes, stride=strides, padding=paddings))
+            else:
+                td_layers.append(ConvModule(in_channels,
+                                            out_channels,
+                                            kernel_sizes,
+                                            strides,
+                                            paddings,
+                                            conv_cfg=dict(type='Conv2d'),
+                                            norm_cfg=dict(type='SyncBN'),
+                                            act_cfg=dict(type='ReLU')))
+                in_channels = out_channels
         self.td_layers = nn.Sequential(*td_layers)
 
     # def init_weights(self):
